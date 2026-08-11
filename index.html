@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📅 Team Schedule</title>
+  <style>
+    :root {
+      --primary: #0078d4;
+      --primary-light: #deecf9;
+      --surface: #faf9f8;
+      --surface-strong: #ffffff;
+      --border: #edebe9;
+      --text: #323130;
+      --muted: #605e5c;
+      --error: #a4262c;
+      --success: #107c10;
+      --warning: #ff9800;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #f3f2f1 0%, #fbfbfb 100%);
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: var(--radius);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .app-shell {
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .header-card {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .title-group h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .month-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+    }
+
+    .month-label {
+      min-width: 150px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+    }
+
+    .toggle-group {
+      display: inline-flex;
+      padding: 4px;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+
+    .toggle-button {
+      padding: 10px 16px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      border-radius: 999px;
+    }
+
+    .toggle-button.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 120, 212, 0.28);
+    }
+
+    .banner-error {
+      padding: 12px 16px;
+      color: #fff;
+      background: var(--error);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .banner-error button {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      padding: 8px 12px;
+    }
+
+    .attendance-card {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-title h2,
+    .section-title h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section-caption {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .chips-wrap {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .member-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      min-height: 42px;
+    }
+
+    .member-chip:hover {
+      border-color: var(--primary);
+      box-shadow: 0 6px 16px rgba(0, 120, 212, 0.15);
+    }
+
+    .member-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-badge.neutral {
+      background: #8a8886;
+    }
+
+    .alert-strip {
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      background: rgba(164, 38, 44, 0.08);
+      border: 1px solid rgba(164, 38, 44, 0.2);
+      color: var(--error);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pulse {
+      animation: pulse 1.7s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(164, 38, 44, 0.35); }
+      70% { box-shadow: 0 0 0 12px rgba(164, 38, 44, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(164, 38, 44, 0); }
+    }
+
+    .content-card {
+      overflow: hidden;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      min-height: 640px;
+    }
+
+    .day-header,
+    .day-cell {
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .day-header {
+      padding: 12px 10px;
+      background: var(--surface);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .day-header.sun { color: #d13438; }
+    .day-header.sat { color: #005a9e; }
+
+    .day-cell {
+      min-height: 112px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #fff;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .day-cell:hover {
+      background: #f8fbff;
+    }
+
+    .day-cell.other-month {
+      background: #fcfcfc;
+      color: #a19f9d;
+    }
+
+    .day-cell.today {
+      box-shadow: inset 0 0 0 2px var(--primary);
+    }
+
+    .day-number {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-weight: 700;
+    }
+
+    .day-number.today-number {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .day-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .schedule-item {
+      position: relative;
+      padding: 7px 28px 7px 10px;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    }
+
+    .schedule-item small {
+      display: inline-block;
+      margin-left: 6px;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+
+    .schedule-delete {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.28);
+      color: #fff;
+      opacity: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .schedule-item:hover .schedule-delete {
+      opacity: 1;
+    }
+
+    .dashboard {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      padding: 16px;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 96px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th, td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: var(--surface);
+      font-weight: 700;
+    }
+
+    .empty-state {
+      padding: 36px 18px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      padding: 16px;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 460px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .modal-header, .modal-body, .modal-footer {
+      padding: 18px 20px;
+    }
+
+    .modal-header {
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      border: 1px solid #c8c6c4;
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      background: #fff;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .primary-button {
+      background: var(--primary);
+      color: #fff;
+      padding: 10px 16px;
+      font-weight: 600;
+    }
+
+    .secondary-button {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      font-weight: 600;
+    }
+
+    .panel-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      background: rgba(0, 0, 0, 0.22);
+    }
+
+    .side-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(420px, 100%);
+      height: 100vh;
+      background: #fff;
+      box-shadow: -18px 0 40px rgba(0, 0, 0, 0.15);
+      z-index: 36;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #fcfcfc;
+    }
+
+    .member-profile {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+    }
+
+    .member-meta h3 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+    }
+
+    .member-meta p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-button-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .status-button {
+      padding: 10px 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .status-button.inactive {
+      opacity: 0.45;
+    }
+
+    .workload-button {
+      width: 100%;
+      padding: 16px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .todo-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .todo-summary-box {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: center;
+    }
+
+    .todo-summary-box strong {
+      display: block;
+      font-size: 22px;
+      margin-top: 4px;
+    }
+
+    .todo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .todo-item {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .todo-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .todo-title-wrap {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .todo-title {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .todo-title.completed {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .todo-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .todo-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .todo-select {
+      min-width: 84px;
+      padding: 8px 10px;
+    }
+
+    .delete-button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(164, 38, 44, 0.08);
+      color: var(--error);
+      font-weight: 700;
+    }
+
+    .inline-form {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .inline-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .inline-row > * {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .loading-screen {
+      min-height: 60vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #d2d0ce;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 1100px) {
+      .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 900px) {
+      .calendar { min-height: 0; }
+      .day-cell { min-height: 100px; }
+      .status-button-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .app-shell { padding: 12px; }
+      .header-card, .attendance-card, .dashboard { padding: 14px; }
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .calendar {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .day-header, .day-cell {
+        width: calc(100% / 7);
+      }
+      .day-header {
+        font-size: 12px;
+        padding: 10px 4px;
+      }
+      .day-cell {
+        min-height: 88px;
+        padding: 6px;
+      }
+      .schedule-item {
+        padding-right: 22px;
+        font-size: 11px;
+      }
+      .status-button-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .todo-item { flex-direction: column; align-items: stretch; }
+      .todo-actions { justify-content: space-between; }
+    }
+
+    @media (max-width: 520px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .month-label { min-width: 120px; }
+      .header-actions { width: 100%; justify-content: space-between; }
+      .toggle-group { width: 100%; justify-content: space-between; }
+      .toggle-button { flex: 1; text-align: center; }
+      .side-panel { width: 100%; }
+      .todo-summary { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    (() => {
+      const { useEffect, useMemo, useRef, useState } = React;
+
+      const SITE_URL = 'https://lgeteams.sharepoint.com/sites/packing_part_schedule';
+      const ATTENDANCE_COLORS = {
+        출근: '#4CAF50',
+        출장: '#FF9800',
+        휴가: '#2196F3',
+        공가: '#9E9E9E',
+        재택: '#9C27B0'
+      };
+      const PRIORITY_META = {
+        높음: { icon: '🔴', color: '#d13438' },
+        보통: { icon: '🟡', color: '#ffb900' },
+        낮음: { icon: '🟢', color: '#107c10' }
+      };
+      const WORKLOAD_META = {
+        Normal: { label: '🟢정상', color: '#107c10' },
+        NeedSupport: { label: '🔴지원필요', color: '#a4262c' }
+      };
+      const TODO_STATUS_OPTIONS = ['대기', '진행중', '완료'];
+      const ATTENDANCE_OPTIONS = ['출근', '출장', '휴가', '공가', '재택'];
+      const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+      const listEntityTypeCache = {};
+
+      function listApi(listTitle) {
+        return `${SITE_URL}/_api/web/lists/getbytitle('${listTitle.replace(/'/g, "''")}')`;
+      }
+
+      function buildUrl(base, params = {}) {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            query.set(key, value);
+          }
+        });
+        const qs = query.toString();
+        return qs ? `${base}?${qs}` : base;
+      }
+
+      async function spFetch(url, options = {}) {
+        const response = await fetch(url, {
+          credentials: 'same-origin',
+          ...options
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`SharePoint 요청 실패 (${response.status}): ${errorText.slice(0, 220)}`);
+        }
+
+        if (response.status === 204) {
+          return null;
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          return response.text();
+        }
+        return response.json();
+      }
+
+      async function getDigest() {
+        const data = await spFetch(`${SITE_URL}/_api/contextinfo`, {
+          method: 'POST',
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        return data.FormDigestValue;
+      }
+
+      async function getListItemEntityTypeFullName(listTitle) {
+        if (listEntityTypeCache[listTitle]) {
+          return listEntityTypeCache[listTitle];
+        }
+        const data = await spFetch(buildUrl(listApi(listTitle), {
+          '$select': 'ListItemEntityTypeFullName'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        listEntityTypeCache[listTitle] = data.ListItemEntityTypeFullName;
+        return data.ListItemEntityTypeFullName;
+      }
+
+      async function createItem(listTitle, payload) {
+        const [digest, entityType] = await Promise.all([
+          getDigest(),
+          getListItemEntityTypeFullName(listTitle)
+        ]);
+        return spFetch(`${listApi(listTitle)}/items`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json;odata=verbose',
+            'Content-Type': 'application/json;odata=verbose',
+            'X-RequestDigest': digest
+          },
+          body: JSON.stringify({
+            __metadata: { type: entityType },
+            ...payload
+          })
+        });
+      }
+
+      async function updateItem(listTitle, itemId, payload) {
+        const [digest, entityType] = await Promise.all([
+          getDigest(),
+          getListItemEntityTypeFullName(listTitle)
+        ]);
+        return spFetch(`${listApi(listTitle)}/items(${itemId})`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json;odata=verbose',
+            'Content-Type': 'application/json;odata=verbose',
+            'X-RequestDigest': digest,
+            'IF-MATCH': '*',
+            'X-HTTP-Method': 'MERGE'
+          },
+          body: JSON.stringify({
+            __metadata: { type: entityType },
+            ...payload
+          })
+        });
+      }
+
+      async function deleteItem(listTitle, itemId) {
+        const digest = await getDigest();
+        return spFetch(`${listApi(listTitle)}/items(${itemId})`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json;odata=nometadata',
+            'X-RequestDigest': digest,
+            'IF-MATCH': '*',
+            'X-HTTP-Method': 'DELETE'
+          }
+        });
+      }
+
+      function toDateKey(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function addDays(date, amount) {
+        const next = new Date(date);
+        next.setDate(next.getDate() + amount);
+        return next;
+      }
+
+      function startOfDay(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      }
+
+      function startOfMonth(date) {
+        return new Date(date.getFullYear(), date.getMonth(), 1);
+      }
+
+      function endOfMonth(date) {
+        return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      }
+
+      function startOfCalendar(date) {
+        const first = startOfMonth(date);
+        return addDays(first, -first.getDay());
+      }
+
+      function endOfCalendar(date) {
+        const last = endOfMonth(date);
+        return addDays(last, 6 - last.getDay());
+      }
+
+      function parseDate(value) {
+        if (!value) return null;
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      function normalizeDate(value) {
+        const parsed = parseDate(value);
+        if (!parsed) return null;
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12);
+      }
+
+      function isSameDay(a, b) {
+        return a && b && toDateKey(a) === toDateKey(b);
+      }
+
+      function formatMonthLabel(date) {
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+      }
+
+      function formatDateLabel(date) {
+        return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+      }
+
+      function formatDueDate(dateValue) {
+        const date = parseDate(dateValue);
+        return date ? `${date.getMonth() + 1}/${date.getDate()}` : '기한없음';
+      }
+
+      function toODataDateTime(date) {
+        return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+      }
+
+      function escapeColor(color) {
+        return /^#[0-9A-Fa-f]{6}$/.test(color || '') ? color : '#0078d4';
+      }
+
+      function normalizeMember(item) {
+        return {
+          Id: item.Id,
+          Title: item.Title || '이름없음',
+          Color: escapeColor(item.Color),
+          Department: item.Department || '-',
+          Role: item.Role || 'Member',
+          Email: item.Email || '',
+          IsActive: item.IsActive !== false && item.IsActive !== 0
+        };
+      }
+
+      function normalizeSchedule(item) {
+        return {
+          Id: item.Id,
+          Title: item.Title || '제목 없음',
+          StartDate: item.StartDate,
+          EndDate: item.EndDate || item.StartDate,
+          Description: item.Description || '',
+          Category: item.Category || '업무',
+          IsRecurring: Boolean(item.IsRecurring),
+          RecurrenceRule: item.RecurrenceRule || '',
+          AssigneeId: item.AssigneeId || null
+        };
+      }
+
+      function normalizeAttendance(item) {
+        return {
+          Id: item.Id,
+          Title: item.Title || '',
+          Date: item.Date,
+          Status: item.Status || '',
+          Note: item.Note || '',
+          MemberId: item.MemberId || null
+        };
+      }
+
+      function normalizeTodo(item) {
+        return {
+          Id: item.Id,
+          Title: item.Title || '',
+          Status: item.Status || '대기',
+          Priority: item.Priority || '보통',
+          DueDate: item.DueDate || null,
+          Memo: item.Memo || '',
+          AssigneeId: item.AssigneeId || null
+        };
+      }
+
+      function normalizeWorkload(item) {
+        return {
+          Id: item.Id,
+          Title: item.Title || '',
+          Status: item.Status || 'Normal',
+          UpdatedAt: item.UpdatedAt || null,
+          UpdatedById: item.UpdatedById || null,
+          MemberId: item.MemberId || null
+        };
+      }
+
+      async function fetchMembers() {
+        const data = await spFetch(buildUrl(`${listApi('TeamMembers')}/items`, {
+          '$select': 'Id,Title,Color,Department,Role,Email,IsActive',
+          '$orderby': 'Title'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        return (data.value || []).map(normalizeMember).filter((member) => member.IsActive);
+      }
+
+      async function fetchCurrentUser() {
+        return spFetch(buildUrl(`${SITE_URL}/_api/web/currentuser`, {
+          '$select': 'Id,Title,Email'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+      }
+
+      async function fetchAttendance(date) {
+        const rangeStart = toODataDateTime(addDays(startOfDay(date), -1));
+        const rangeEnd = toODataDateTime(addDays(startOfDay(date), 2));
+        const data = await spFetch(buildUrl(`${listApi('AttendanceStatus')}/items`, {
+          '$select': 'Id,Title,Date,Status,Note,MemberId',
+          '$filter': `Date ge datetime'${rangeStart}' and Date lt datetime'${rangeEnd}'`,
+          '$orderby': 'Modified desc',
+          '$top': '300'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        const targetKey = toDateKey(date);
+        return (data.value || [])
+          .map(normalizeAttendance)
+          .filter((item) => {
+            const normalized = normalizeDate(item.Date);
+            return normalized && toDateKey(normalized) === targetKey;
+          });
+      }
+
+      async function fetchSchedules(monthDate) {
+        const rangeStart = toODataDateTime(addDays(startOfMonth(monthDate), -1));
+        const rangeEnd = toODataDateTime(addDays(endOfMonth(monthDate), 1));
+        const data = await spFetch(buildUrl(`${listApi('Schedules')}/items`, {
+          '$select': 'Id,Title,StartDate,EndDate,Description,Category,IsRecurring,RecurrenceRule,AssigneeId',
+          '$filter': `StartDate le datetime'${rangeEnd}' and (EndDate ge datetime'${rangeStart}' or EndDate eq null)`,
+          '$orderby': 'StartDate asc',
+          '$top': '500'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        return (data.value || []).map(normalizeSchedule);
+      }
+
+      async function fetchTodos() {
+        const data = await spFetch(buildUrl(`${listApi('Todos')}/items`, {
+          '$select': 'Id,Title,Status,Priority,DueDate,Memo,AssigneeId',
+          '$orderby': 'Id desc',
+          '$top': '1000'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        return (data.value || []).map(normalizeTodo);
+      }
+
+      async function fetchWorkload() {
+        const data = await spFetch(buildUrl(`${listApi('WorkloadStatus')}/items`, {
+          '$select': 'Id,Title,Status,UpdatedAt,UpdatedById,MemberId',
+          '$orderby': 'UpdatedAt desc',
+          '$top': '500'
+        }), {
+          headers: { Accept: 'application/json;odata=nometadata' }
+        });
+        return (data.value || []).map(normalizeWorkload);
+      }
+
+      function buildScheduleMap(schedules) {
+        const map = {};
+        schedules.forEach((schedule) => {
+          const start = normalizeDate(schedule.StartDate);
+          const end = normalizeDate(schedule.EndDate || schedule.StartDate);
+          if (!start || !end) return;
+          let cursor = start;
+          let guard = 0;
+          while (cursor <= end && guard < 90) {
+            const key = toDateKey(cursor);
+            if (!map[key]) map[key] = [];
+            map[key].push(schedule);
+            cursor = addDays(cursor, 1);
+            guard += 1;
+          }
+        });
+        Object.values(map).forEach((items) => {
+          items.sort((a, b) => {
+            const aTime = parseDate(a.StartDate)?.getTime() || 0;
+            const bTime = parseDate(b.StartDate)?.getTime() || 0;
+            return aTime - bTime;
+          });
+        });
+        return map;
+      }
+
+      function pickLatestByMember(records) {
+        const map = new Map();
+        records.forEach((record) => {
+          if (!record.MemberId) return;
+          const current = map.get(record.MemberId);
+          const currentStamp = parseDate(current?.UpdatedAt || current?.Date)?.getTime() || current?.Id || 0;
+          const nextStamp = parseDate(record.UpdatedAt || record.Date)?.getTime() || record.Id || 0;
+          if (!current || nextStamp >= currentStamp) {
+            map.set(record.MemberId, record);
+          }
+        });
+        return map;
+      }
+
+      function getTodayColor(status) {
+        return ATTENDANCE_COLORS[status] || '#8a8886';
+      }
+
+      function App() {
+        const todayRef = useRef(new Date());
+        const didInitialLoad = useRef(false);
+
+        const [currentMonth, setCurrentMonth] = useState(startOfMonth(todayRef.current));
+        const [viewMode, setViewMode] = useState('calendar');
+        const [members, setMembers] = useState([]);
+        const [attendance, setAttendance] = useState([]);
+        const [schedules, setSchedules] = useState([]);
+        const [todos, setTodos] = useState([]);
+        const [workload, setWorkload] = useState([]);
+        const [currentUser, setCurrentUser] = useState(null);
+        const [selectedMemberId, setSelectedMemberId] = useState(null);
+        const [scheduleModalDate, setScheduleModalDate] = useState(null);
+        const [scheduleForm, setScheduleForm] = useState({
+          title: '',
+          assigneeId: '',
+          category: '업무',
+          description: ''
+        });
+        const [showTodoForm, setShowTodoForm] = useState(false);
+        const [todoForm, setTodoForm] = useState({ title: '', priority: '보통' });
+        const [loading, setLoading] = useState(true);
+        const [monthLoading, setMonthLoading] = useState(false);
+        const [busyKey, setBusyKey] = useState('');
+        const [error, setError] = useState('');
+
+        const memberMap = useMemo(() => {
+          const map = new Map();
+          members.forEach((member) => map.set(member.Id, member));
+          return map;
+        }, [members]);
+
+        const sortedMembers = useMemo(() => {
+          return [...members].sort((a, b) => {
+            if (a.Role === 'Leader' && b.Role !== 'Leader') return -1;
+            if (a.Role !== 'Leader' && b.Role === 'Leader') return 1;
+            return a.Title.localeCompare(b.Title, 'ko');
+          });
+        }, [members]);
+
+        const attendanceMap = useMemo(() => pickLatestByMember(attendance), [attendance]);
+        const workloadMap = useMemo(() => pickLatestByMember(workload), [workload]);
+        const scheduleMap = useMemo(() => buildScheduleMap(schedules), [schedules]);
+
+        const selectedMember = useMemo(
+          () => sortedMembers.find((member) => member.Id === selectedMemberId) || null,
+          [sortedMembers, selectedMemberId]
+        );
+
+        const memberTodos = useMemo(() => {
+          if (!selectedMemberId) return [];
+          return todos.filter((todo) => todo.AssigneeId === selectedMemberId);
+        }, [todos, selectedMemberId]);
+
+        const needSupportMembers = useMemo(() => {
+          return sortedMembers.filter((member) => workloadMap.get(member.Id)?.Status === 'NeedSupport');
+        }, [sortedMembers, workloadMap]);
+
+        const dashboardStats = useMemo(() => {
+          return {
+            total: sortedMembers.length,
+            travel: sortedMembers.filter((m) => attendanceMap.get(m.Id)?.Status === '출장').length,
+            vacation: sortedMembers.filter((m) => attendanceMap.get(m.Id)?.Status === '휴가').length,
+            remote: sortedMembers.filter((m) => attendanceMap.get(m.Id)?.Status === '재택').length,
+            support: needSupportMembers.length,
+            inProgressTodos: todos.filter((todo) => todo.Status === '진행중').length
+          };
+        }, [sortedMembers, attendanceMap, needSupportMembers.length, todos]);
+
+        const calendarDays = useMemo(() => {
+          const start = startOfCalendar(currentMonth);
+          const end = endOfCalendar(currentMonth);
+          const days = [];
+          let cursor = start;
+          while (cursor <= end) {
+            days.push(new Date(cursor));
+            cursor = addDays(cursor, 1);
+          }
+          return days;
+        }, [currentMonth]);
+
+        useEffect(() => {
+          const loadInitialData = async () => {
+            setLoading(true);
+            setError('');
+            try {
+              const [membersData, attendanceData, schedulesData, todosData, workloadData, userData] = await Promise.all([
+                fetchMembers(),
+                fetchAttendance(todayRef.current),
+                fetchSchedules(currentMonth),
+                fetchTodos(),
+                fetchWorkload(),
+                fetchCurrentUser()
+              ]);
+              setMembers(membersData);
+              setAttendance(attendanceData);
+              setSchedules(schedulesData);
+              setTodos(todosData);
+              setWorkload(workloadData);
+              setCurrentUser(userData);
+              didInitialLoad.current = true;
+            } catch (err) {
+              setError(err.message || '초기 데이터를 불러오지 못했습니다.');
+            } finally {
+              setLoading(false);
+            }
+          };
+          loadInitialData();
+        }, []);
+
+        useEffect(() => {
+          if (!didInitialLoad.current) return;
+          const loadMonthSchedules = async () => {
+            setMonthLoading(true);
+            try {
+              const data = await fetchSchedules(currentMonth);
+              setSchedules(data);
+            } catch (err) {
+              setError(err.message || '월별 일정을 불러오지 못했습니다.');
+            } finally {
+              setMonthLoading(false);
+            }
+          };
+          loadMonthSchedules();
+        }, [currentMonth]);
+
+        async function refreshAttendance() {
+          const data = await fetchAttendance(todayRef.current);
+          setAttendance(data);
+        }
+
+        async function refreshTodos() {
+          const data = await fetchTodos();
+          setTodos(data);
+        }
+
+        async function refreshWorkload() {
+          const data = await fetchWorkload();
+          setWorkload(data);
+        }
+
+        async function refreshSchedules() {
+          const data = await fetchSchedules(currentMonth);
+          setSchedules(data);
+        }
+
+        function openScheduleModal(date) {
+          setScheduleModalDate(date);
+          setScheduleForm({
+            title: '',
+            assigneeId: selectedMemberId || (sortedMembers[0]?.Id || ''),
+            category: '업무',
+            description: ''
+          });
+        }
+
+        async function handleCreateSchedule(event) {
+          event.preventDefault();
+          if (!scheduleForm.title.trim()) {
+            setError('일정 제목을 입력해 주세요.');
+            return;
+          }
+          if (!scheduleForm.assigneeId) {
+            setError('담당자를 선택해 주세요.');
+            return;
+          }
+          if (!scheduleModalDate) return;
+
+          setBusyKey('schedule-save');
+          setError('');
+          try {
+            const startDate = new Date(scheduleModalDate.getFullYear(), scheduleModalDate.getMonth(), scheduleModalDate.getDate(), 9);
+            const endDate = new Date(scheduleModalDate.getFullYear(), scheduleModalDate.getMonth(), scheduleModalDate.getDate(), 18);
+            await createItem('Schedules', {
+              Title: scheduleForm.title.trim(),
+              StartDate: startDate.toISOString(),
+              EndDate: endDate.toISOString(),
+              Description: scheduleForm.description.trim(),
+              Category: scheduleForm.category,
+              IsRecurring: false,
+              RecurrenceRule: '',
+              AssigneeId: Number(scheduleForm.assigneeId)
+            });
+            await refreshSchedules();
+            setScheduleModalDate(null);
+          } catch (err) {
+            setError(err.message || '일정을 추가하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        async function handleDeleteSchedule(scheduleId) {
+          if (!window.confirm('이 일정을 삭제할까요?')) return;
+          setBusyKey(`schedule-delete-${scheduleId}`);
+          setError('');
+          try {
+            await deleteItem('Schedules', scheduleId);
+            await refreshSchedules();
+          } catch (err) {
+            setError(err.message || '일정을 삭제하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        async function handleAttendanceChange(member, status) {
+          if (!member) return;
+          setBusyKey(`attendance-${member.Id}`);
+          setError('');
+          const current = attendanceMap.get(member.Id);
+          try {
+            const payload = {
+              Title: `${member.Title} ${toDateKey(todayRef.current)}`,
+              Date: startOfDay(todayRef.current).toISOString(),
+              Status: status,
+              Note: current?.Note || '',
+              MemberId: member.Id
+            };
+            if (current) {
+              await updateItem('AttendanceStatus', current.Id, payload);
+            } else {
+              await createItem('AttendanceStatus', payload);
+            }
+            await refreshAttendance();
+          } catch (err) {
+            setError(err.message || '근태 상태를 저장하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        async function handleToggleWorkload(member) {
+          if (!member) return;
+          setBusyKey(`workload-${member.Id}`);
+          setError('');
+          const current = workloadMap.get(member.Id);
+          const nextStatus = current?.Status === 'NeedSupport' ? 'Normal' : 'NeedSupport';
+          try {
+            const payload = {
+              Title: `${member.Title} 업무부하`,
+              Status: nextStatus,
+              UpdatedAt: new Date().toISOString(),
+              MemberId: member.Id
+            };
+            if (currentUser?.Id) {
+              payload.UpdatedById = currentUser.Id;
+            }
+            if (current) {
+              await updateItem('WorkloadStatus', current.Id, payload);
+            } else {
+              await createItem('WorkloadStatus', payload);
+            }
+            await refreshWorkload();
+          } catch (err) {
+            setError(err.message || '업무부하 상태를 저장하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        async function handleTodoStatusChange(todoId, status) {
+          setBusyKey(`todo-status-${todoId}`);
+          setError('');
+          try {
+            await updateItem('Todos', todoId, { Status: status });
+            await refreshTodos();
+          } catch (err) {
+            setError(err.message || '할 일 상태를 변경하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        async function handleDeleteTodo(todoId) {
+          if (!window.confirm('이 할 일을 삭제할까요?')) return;
+          setBusyKey(`todo-delete-${todoId}`);
+          setError('');
+          try {
+            await deleteItem('Todos', todoId);
+            await refreshTodos();
+          } catch (err) {
+            setError(err.message || '할 일을 삭제하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        async function handleCreateTodo() {
+          if (!selectedMember || !todoForm.title.trim()) {
+            setError('할 일 제목을 입력해 주세요.');
+            return;
+          }
+          setBusyKey(`todo-create-${selectedMember.Id}`);
+          setError('');
+          try {
+            await createItem('Todos', {
+              Title: todoForm.title.trim(),
+              Status: '대기',
+              Priority: todoForm.priority,
+              AssigneeId: selectedMember.Id,
+              Memo: ''
+            });
+            setTodoForm({ title: '', priority: '보통' });
+            setShowTodoForm(false);
+            await refreshTodos();
+          } catch (err) {
+            setError(err.message || '할 일을 추가하지 못했습니다.');
+          } finally {
+            setBusyKey('');
+          }
+        }
+
+        function renderStatusBadge(status) {
+          if (!status) {
+            return <span className="status-badge neutral">미등록</span>;
+          }
+          return (
+            <span className="status-badge" style={{ background: getTodayColor(status) }}>
+              {status}
+            </span>
+          );
+        }
+
+        if (loading) {
+          return (
+            <div className="app-shell">
+              <div className="loading-screen">
+                <div className="spinner" />
+                <div>SharePoint 데이터를 불러오는 중입니다...</div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="app-shell">
+            <div className="container">
+              {error && (
+                <div className="card banner-error">
+                  <span>{error}</span>
+                  <button onClick={() => setError('')}>닫기</button>
+                </div>
+              )}
+
+              <div className="card header-card">
+                <div className="title-group">
+                  <h1>📅 Team Schedule</h1>
+                  <div className="subtitle">{SITE_URL}</div>
+                </div>
+                <div className="header-actions">
+                  <div className="month-nav">
+                    <button
+                      className="icon-button"
+                      onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                      aria-label="이전 달"
+                    >
+                      ◀
+                    </button>
+                    <div className="month-label">
+                      {monthLoading ? '불러오는 중...' : formatMonthLabel(currentMonth)}
+                    </div>
+                    <button
+                      className="icon-button"
+                      onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                      aria-label="다음 달"
+                    >
+                      ▶
+                    </button>
+                  </div>
+                  <div className="toggle-group">
+                    <button
+                      className={`toggle-button ${viewMode === 'calendar' ? 'active' : ''}`}
+                      onClick={() => setViewMode('calendar')}
+                    >
+                      캘린더
+                    </button>
+                    <button
+                      className={`toggle-button ${viewMode === 'dashboard' ? 'active' : ''}`}
+                      onClick={() => setViewMode('dashboard')}
+                    >
+                      대시보드
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card attendance-card">
+                <div className="section-title">
+                  <h2>오늘 근태현황</h2>
+                  <span className="section-caption">{toDateKey(todayRef.current)}</span>
+                </div>
+                <div className="chips-wrap">
+                  {sortedMembers.map((member) => {
+                    const status = attendanceMap.get(member.Id)?.Status;
+                    return (
+                      <button
+                        key={member.Id}
+                        className="member-chip"
+                        onClick={() => setSelectedMemberId(member.Id)}
+                      >
+                        <span className="member-dot" style={{ background: member.Color }} />
+                        <strong>{member.Title}</strong>
+                        {renderStatusBadge(status)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="alert-strip">
+                  <strong className={needSupportMembers.length ? 'pulse' : ''}>🔴 지원 필요</strong>
+                  {needSupportMembers.length
+                    ? needSupportMembers.map((member) => member.Title).join(', ')
+                    : '현재 지원 필요 인원이 없습니다.'}
+                </div>
+              </div>
+
+              <div className="card content-card">
+                {viewMode === 'calendar' ? (
+                  <div className="calendar">
+                    {DAY_NAMES.map((dayName, index) => (
+                      <div
+                        key={dayName}
+                        className={`day-header ${index === 0 ? 'sun' : ''} ${index === 6 ? 'sat' : ''}`}
+                      >
+                        {dayName}
+                      </div>
+                    ))}
+                    {calendarDays.map((day) => {
+                      const dateKey = toDateKey(day);
+                      const items = scheduleMap[dateKey] || [];
+                      const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                      const isTodayValue = isSameDay(day, todayRef.current);
+                      return (
+                        <div
+                          key={dateKey}
+                          className={`day-cell ${isCurrentMonth ? '' : 'other-month'} ${isTodayValue ? 'today' : ''}`}
+                          onClick={() => openScheduleModal(day)}
+                        >
+                          <div className={`day-number ${isTodayValue ? 'today-number' : ''}`}>
+                            {day.getDate()}
+                          </div>
+                          <div className="day-items">
+                            {items.length ? (
+                              items.map((item) => {
+                                const assignee = memberMap.get(item.AssigneeId);
+                                return (
+                                  <div
+                                    key={item.Id}
+                                    className="schedule-item"
+                                    style={{ background: assignee?.Color || '#0078d4' }}
+                                    title={`${item.Title} (${assignee?.Title || '미지정'})`}
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    {item.Title}
+                                    <small>{assignee?.Title || '미지정'}</small>
+                                    <button
+                                      className="schedule-delete"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleDeleteSchedule(item.Id);
+                                      }}
+                                      disabled={busyKey === `schedule-delete-${item.Id}`}
+                                      aria-label="일정 삭제"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <span className="section-caption">일정 없음</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="dashboard">
+                    <div className="stats-grid">
+                      {[
+                        ['전체인원', dashboardStats.total],
+                        ['출장', dashboardStats.travel],
+                        ['휴가', dashboardStats.vacation],
+                        ['재택', dashboardStats.remote],
+                        ['🔴지원필요', dashboardStats.support],
+                        ['진행중 업무', dashboardStats.inProgressTodos]
+                      ].map(([label, value]) => (
+                        <div key={label} className="stat-card">
+                          <div className="stat-label">{label}</div>
+                          <div className="stat-value">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="alert-strip">
+                      <strong className={needSupportMembers.length ? 'pulse' : ''}>알림</strong>
+                      {needSupportMembers.length
+                        ? `${needSupportMembers.map((member) => member.Title).join(', ')} 님이 지원 필요 상태입니다.`
+                        : '지원 필요 알림이 없습니다.'}
+                    </div>
+
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>이름</th>
+                            <th>근태</th>
+                            <th>업무부하</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedMembers.map((member) => {
+                            const attendanceStatus = attendanceMap.get(member.Id)?.Status;
+                            const workloadStatus = workloadMap.get(member.Id)?.Status || 'Normal';
+                            return (
+                              <tr key={member.Id}>
+                                <td>
+                                  <button
+                                    className="member-chip"
+                                    onClick={() => setSelectedMemberId(member.Id)}
+                                    style={{ padding: '6px 10px' }}
+                                  >
+                                    <span className="member-dot" style={{ background: member.Color }} />
+                                    <strong>{member.Title}</strong>
+                                  </button>
+                                </td>
+                                <td>{renderStatusBadge(attendanceStatus)}</td>
+                                <td>
+                                  <span
+                                    className={`status-badge ${workloadStatus === 'NeedSupport' ? 'pulse' : ''}`}
+                                    style={{ background: WORKLOAD_META[workloadStatus]?.color || '#107c10' }}
+                                  >
+                                    {WORKLOAD_META[workloadStatus]?.label || '🟢정상'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {scheduleModalDate && (
+              <div className="overlay" onClick={() => setScheduleModalDate(null)}>
+                <div className="modal" onClick={(event) => event.stopPropagation()}>
+                  <div className="modal-header">
+                    <h3>일정 추가</h3>
+                    <button className="delete-button" onClick={() => setScheduleModalDate(null)}>×</button>
+                  </div>
+                  <form onSubmit={handleCreateSchedule}>
+                    <div className="modal-body">
+                      <div className="section-caption">{formatDateLabel(scheduleModalDate)}</div>
+                      <div className="field">
+                        <label>제목</label>
+                        <input
+                          value={scheduleForm.title}
+                          onChange={(event) => setScheduleForm((prev) => ({ ...prev, title: event.target.value }))}
+                          placeholder="예: 고객 미팅"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="field">
+                        <label>담당자</label>
+                        <select
+                          value={scheduleForm.assigneeId}
+                          onChange={(event) => setScheduleForm((prev) => ({ ...prev, assigneeId: event.target.value }))}
+                        >
+                          <option value="">담당자 선택</option>
+                          {sortedMembers.map((member) => (
+                            <option key={member.Id} value={member.Id}>{member.Title}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label>분류</label>
+                        <select
+                          value={scheduleForm.category}
+                          onChange={(event) => setScheduleForm((prev) => ({ ...prev, category: event.target.value }))}
+                        >
+                          <option value="회의">회의</option>
+                          <option value="업무">업무</option>
+                          <option value="기타">기타</option>
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label>메모</label>
+                        <textarea
+                          value={scheduleForm.description}
+                          onChange={(event) => setScheduleForm((prev) => ({ ...prev, description: event.target.value }))}
+                          placeholder="상세 내용을 입력하세요."
+                        />
+                      </div>
+                    </div>
+                    <div className="modal-footer">
+                      <button type="button" className="secondary-button" onClick={() => setScheduleModalDate(null)}>
+                        취소
+                      </button>
+                      <button type="submit" className="primary-button" disabled={busyKey === 'schedule-save'}>
+                        {busyKey === 'schedule-save' ? '저장 중...' : '추가'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {selectedMember && (
+              <>
+                <div className="panel-overlay" onClick={() => setSelectedMemberId(null)} />
+                <aside className="side-panel">
+                  <div className="panel-header">
+                    <div className="member-profile">
+                      <div className="avatar" style={{ background: selectedMember.Color }}>
+                        {selectedMember.Title.slice(0, 1)}
+                      </div>
+                      <div className="member-meta">
+                        <h3>{selectedMember.Title}</h3>
+                        <p>{selectedMember.Department} · {selectedMember.Role === 'Leader' ? '리더' : '팀원'}</p>
+                        <p>{selectedMember.Email || '이메일 미등록'}</p>
+                      </div>
+                    </div>
+                    <button className="delete-button" onClick={() => setSelectedMemberId(null)}>×</button>
+                  </div>
+
+                  <div className="panel-content">
+                    <section className="card" style={{ padding: '16px' }}>
+                      <div className="section-title">
+                        <h3>현재 근태</h3>
+                        {renderStatusBadge(attendanceMap.get(selectedMember.Id)?.Status)}
+                      </div>
+                      <div className="status-button-grid" style={{ marginTop: '14px' }}>
+                        {ATTENDANCE_OPTIONS.map((status) => (
+                          <button
+                            key={status}
+                            className={`status-button ${attendanceMap.get(selectedMember.Id)?.Status === status ? '' : 'inactive'}`}
+                            style={{ background: ATTENDANCE_COLORS[status] }}
+                            onClick={() => handleAttendanceChange(selectedMember, status)}
+                            disabled={busyKey === `attendance-${selectedMember.Id}`}
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="card" style={{ padding: '16px' }}>
+                      <div className="section-title">
+                        <h3>업무부하</h3>
+                        <span className="section-caption">클릭하여 토글</span>
+                      </div>
+                      <button
+                        className={`workload-button ${workloadMap.get(selectedMember.Id)?.Status === 'NeedSupport' ? 'pulse' : ''}`}
+                        style={{ background: WORKLOAD_META[workloadMap.get(selectedMember.Id)?.Status || 'Normal']?.color || '#107c10' }}
+                        onClick={() => handleToggleWorkload(selectedMember)}
+                        disabled={busyKey === `workload-${selectedMember.Id}`}
+                      >
+                        {WORKLOAD_META[workloadMap.get(selectedMember.Id)?.Status || 'Normal']?.label || '🟢정상'}
+                      </button>
+                    </section>
+
+                    <section className="card" style={{ padding: '16px' }}>
+                      <div className="section-title">
+                        <h3>Todo</h3>
+                        <button className="secondary-button" onClick={() => setShowTodoForm((prev) => !prev)}>
+                          + 할 일 추가
+                        </button>
+                      </div>
+
+                      <div className="todo-summary" style={{ marginTop: '14px' }}>
+                        <div className="todo-summary-box">
+                          진행중
+                          <strong>{memberTodos.filter((todo) => todo.Status === '진행중').length}</strong>
+                        </div>
+                        <div className="todo-summary-box">
+                          대기
+                          <strong>{memberTodos.filter((todo) => todo.Status === '대기').length}</strong>
+                        </div>
+                        <div className="todo-summary-box">
+                          완료
+                          <strong>{memberTodos.filter((todo) => todo.Status === '완료').length}</strong>
+                        </div>
+                      </div>
+
+                      {showTodoForm && (
+                        <div className="inline-form" style={{ marginTop: '14px' }}>
+                          <div className="field">
+                            <label>업무명</label>
+                            <input
+                              value={todoForm.title}
+                              onChange={(event) => setTodoForm((prev) => ({ ...prev, title: event.target.value }))}
+                              placeholder="할 일을 입력하세요."
+                            />
+                          </div>
+                          <div className="inline-row">
+                            <div className="field">
+                              <label>우선순위</label>
+                              <select
+                                value={todoForm.priority}
+                                onChange={(event) => setTodoForm((prev) => ({ ...prev, priority: event.target.value }))}
+                              >
+                                <option value="높음">높음</option>
+                                <option value="보통">보통</option>
+                                <option value="낮음">낮음</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="inline-row">
+                            <button
+                              className="primary-button"
+                              onClick={handleCreateTodo}
+                              disabled={busyKey === `todo-create-${selectedMember.Id}`}
+                            >
+                              추가
+                            </button>
+                            <button
+                              className="secondary-button"
+                              onClick={() => {
+                                setShowTodoForm(false);
+                                setTodoForm({ title: '', priority: '보통' });
+                              }}
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="todo-list" style={{ marginTop: '14px' }}>
+                        {memberTodos.length ? memberTodos.map((todo) => {
+                          const priority = PRIORITY_META[todo.Priority] || PRIORITY_META.보통;
+                          return (
+                            <div key={todo.Id} className="todo-item">
+                              <div className="todo-main">
+                                <span style={{ fontSize: '20px' }}>{priority.icon}</span>
+                                <div className="todo-title-wrap">
+                                  <div className={`todo-title ${todo.Status === '완료' ? 'completed' : ''}`}>
+                                    {todo.Title}
+                                  </div>
+                                  <div className="todo-meta" style={{ color: priority.color }}>
+                                    {todo.Priority} · {formatDueDate(todo.DueDate)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="todo-actions">
+                                <select
+                                  className="todo-select"
+                                  value={todo.Status}
+                                  onChange={(event) => handleTodoStatusChange(todo.Id, event.target.value)}
+                                  disabled={busyKey === `todo-status-${todo.Id}`}
+                                >
+                                  {TODO_STATUS_OPTIONS.map((status) => (
+                                    <option key={status} value={status}>{status}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  className="delete-button"
+                                  onClick={() => handleDeleteTodo(todo.Id)}
+                                  disabled={busyKey === `todo-delete-${todo.Id}`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }) : (
+                          <div className="empty-state">등록된 할 일이 없습니다.</div>
+                        )}
+                      </div>
+                    </section>
+                  </div>
+                </aside>
+              </>
+            )}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    })();
+  </script>
+</body>
+</html>

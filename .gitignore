@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build outputs (SPFx legacy)
+dist/
+lib/
+temp/
+release/
+*.sppkg
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Package lock (optional - uncomment if needed)
+# package-lock.json

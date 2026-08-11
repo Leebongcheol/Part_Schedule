@@ -1,0 +1,141 @@
+.container {
+  background: #fff;
+  border: 1px solid #edebe9;
+  border-radius: 8px;
+  padding: 16px;
+  height: fit-content;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edebe9;
+}
+
+.memberInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.name {
+  margin: 0;
+  font-size: 16px;
+}
+
+.department {
+  font-size: 12px;
+  color: #605e5c;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #605e5c;
+  padding: 4px;
+
+  &:hover {
+    color: #323130;
+  }
+}
+
+.section {
+  margin-bottom: 20px;
+
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: #323130;
+  }
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.statusButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statusBtn {
+  padding: 4px 10px;
+  border: 2px solid;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 0.8;
+  }
+
+  &.activeStatus {
+    font-weight: 700;
+    transform: scale(1.05);
+  }
+}
+
+.workloadBtn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 2px solid;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.normal {
+    border-color: #4CAF50;
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &.needSupport {
+    border-color: #f44336;
+    background: #ffebee;
+    color: #c62828;
+    animation: pulse 1.5s infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.hint {
+  font-size: 11px;
+  color: #8a8886;
+  margin: 4px 0 0;
+}
