@@ -1,139 +1,189 @@
 /**
- * Team Schedule Management App
- * Pure vanilla JavaScript - localStorage persistence
+ * 패키징기술파트 Schedule - App Logic
+ * Vanilla JS, localStorage-based
  */
 
 // ============================================================
-// Constants & Configuration
+// Constants
 // ============================================================
-
 const STATUS_TYPES = ['출근', '출장', '휴가', '공가', '재택', '교육'];
 
 const STATUS_COLORS = {
-  '출근': '#4CAF50',
-  '출장': '#2196F3',
-  '휴가': '#FF9800',
-  '공가': '#9C27B0',
-  '재택': '#00BCD4',
-  '교육': '#FF5722'
+  '출근': '#16a34a',
+  '출장': '#f59e0b',
+  '휴가': '#3b82f6',
+  '공가': '#8b5cf6',
+  '재택': '#0d9488',
+  '교육': '#ea580c'
 };
 
 const STORAGE_KEYS = {
-  members: 'teamSchedule_members',
-  schedules: 'teamSchedule_schedules'
+  members: 'partSchedule_members',
+  schedules: 'partSchedule_schedules',
+  todos: 'partSchedule_todos'
 };
 
 const DEFAULT_MEMBERS = [
-  { id: generateId(), name: '김철수', color: '#E91E63', department: '개발팀' },
-  { id: generateId(), name: '이영희', color: '#3F51B5', department: '디자인팀' },
-  { id: generateId(), name: '박민수', color: '#009688', department: '개발팀' },
-  { id: generateId(), name: '정수진', color: '#FF5722', department: '기획팀' },
-  { id: generateId(), name: '최동혁', color: '#795548', department: '개발팀' },
-  { id: generateId(), name: '한지원', color: '#607D8B', department: '디자인팀' }
+  { id: uid(), name: '김철수', color: '#E91E63', department: '패키징기술파트' },
+  { id: uid(), name: '이영희', color: '#3F51B5', department: '패키징기술파트' },
+  { id: uid(), name: '박민수', color: '#009688', department: '패키징기술파트' },
+  { id: uid(), name: '정수진', color: '#FF5722', department: '패키징기술파트' },
+  { id: uid(), name: '최동혁', color: '#795548', department: '패키징기술파트' },
+  { id: uid(), name: '한지원', color: '#607D8B', department: '패키징기술파트' }
 ];
 
 // ============================================================
 // State
 // ============================================================
-
-let currentDate = new Date();
-let members = [];
-let schedules = [];
+let state = {
+  currentView: 'calendar',
+  currentDate: new Date(),
+  members: [],
+  schedules: [],
+  todos: [],
+  todoFilter: 'all',
+  statusModal: { memberId: null, date: null, selectedStatus: null }
+};
 
 // ============================================================
-// Helper Functions
+// Helpers
 // ============================================================
-
-function generateId() {
-  return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-function formatDate(date) {
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function formatDate(d) {
+  const date = new Date(d);
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
 
 function getWeekDates(date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday
-  const monday = new Date(d.setDate(diff));
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d);
+  monday.setDate(diff);
   const dates = [];
   for (let i = 0; i < 5; i++) {
-    const current = new Date(monday);
-    current.setDate(monday.getDate() + i);
-    dates.push(current);
+    const curr = new Date(monday);
+    curr.setDate(monday.getDate() + i);
+    dates.push(curr);
   }
   return dates;
 }
 
-function getDayName(date) {
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
-  return days[new Date(date).getDay()];
+function getWeekLabel(dates) {
+  const s = dates[0];
+  const e = dates[4];
+  return `${s.getFullYear()}년 ${s.getMonth()+1}월 ${Math.ceil(s.getDate()/7)}주차 (${s.getMonth()+1}/${s.getDate()} ~ ${e.getMonth()+1}/${e.getDate()})`;
 }
+
+function getDayNames() { return ['월','화','수','목','금']; }
 
 // ============================================================
 // Data Persistence
 // ============================================================
-
 function loadData() {
-  const storedMembers = localStorage.getItem(STORAGE_KEYS.members);
-  const storedSchedules = localStorage.getItem(STORAGE_KEYS.schedules);
-
-  if (storedMembers) {
-    members = JSON.parse(storedMembers);
-  } else {
-    members = DEFAULT_MEMBERS;
-    saveMembers();
-  }
-
-  if (storedSchedules) {
-    schedules = JSON.parse(storedSchedules);
-  } else {
-    schedules = [];
-    saveSchedules();
-  }
+  const m = localStorage.getItem(STORAGE_KEYS.members);
+  const s = localStorage.getItem(STORAGE_KEYS.schedules);
+  const t = localStorage.getItem(STORAGE_KEYS.todos);
+  state.members = m ? JSON.parse(m) : [...DEFAULT_MEMBERS];
+  state.schedules = s ? JSON.parse(s) : [];
+  state.todos = t ? JSON.parse(t) : [];
+  if (!m) saveMembers();
+  if (!s) saveSchedules();
+  if (!t) saveTodos();
 }
 
-function saveMembers() {
-  localStorage.setItem(STORAGE_KEYS.members, JSON.stringify(members));
+function saveMembers() { localStorage.setItem(STORAGE_KEYS.members, JSON.stringify(state.members)); }
+function saveSchedules() { localStorage.setItem(STORAGE_KEYS.schedules, JSON.stringify(state.schedules)); }
+function saveTodos() { localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(state.todos)); }
+
+// ============================================================
+// Schedule CRUD
+// ============================================================
+function getSchedule(memberId, dateStr) {
+  return state.schedules.find(s => s.memberId === memberId && s.date === dateStr);
 }
 
-function saveSchedules() {
-  localStorage.setItem(STORAGE_KEYS.schedules, JSON.stringify(schedules));
-}
-
-function clearAllData() {
-  if (confirm('모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-    localStorage.removeItem(STORAGE_KEYS.members);
-    localStorage.removeItem(STORAGE_KEYS.schedules);
-    members = DEFAULT_MEMBERS.map(m => ({ ...m, id: generateId() }));
-    schedules = [];
-    saveMembers();
-    saveSchedules();
-    render();
+function setSchedule(memberId, dateStr, status, note) {
+  const idx = state.schedules.findIndex(s => s.memberId === memberId && s.date === dateStr);
+  if (idx >= 0) {
+    if (status) {
+      state.schedules[idx].status = status;
+      state.schedules[idx].note = note || '';
+    } else {
+      state.schedules.splice(idx, 1);
+    }
+  } else if (status) {
+    state.schedules.push({ id: uid(), memberId, date: dateStr, status, note: note || '' });
   }
+  saveSchedules();
+}
+
+// ============================================================
+// Member CRUD
+// ============================================================
+function addMember(name, color, department) {
+  state.members.push({ id: uid(), name, color, department: department || '' });
+  saveMembers();
+}
+
+function removeMember(memberId) {
+  state.members = state.members.filter(m => m.id !== memberId);
+  state.schedules = state.schedules.filter(s => s.memberId !== memberId);
+  state.todos = state.todos.filter(t => t.assigneeId !== memberId);
+  saveMembers();
+  saveSchedules();
+  saveTodos();
+}
+
+// ============================================================
+// Todo CRUD
+// ============================================================
+function addTodo(title, assigneeId, priority, dueDate, desc) {
+  state.todos.push({
+    id: uid(), title, assigneeId, priority: priority || 'medium',
+    dueDate: dueDate || '', description: desc || '', done: false, createdAt: new Date().toISOString()
+  });
+  saveTodos();
+}
+
+function toggleTodo(todoId) {
+  const t = state.todos.find(x => x.id === todoId);
+  if (t) { t.done = !t.done; saveTodos(); }
+}
+
+function deleteTodo(todoId) {
+  state.todos = state.todos.filter(x => x.id !== todoId);
+  saveTodos();
+}
+
+// ============================================================
+// Workload Calculation
+// ============================================================
+function getWorkload(memberId) {
+  const weekDates = getWeekDates(state.currentDate);
+  const weekStart = formatDate(weekDates[0]);
+  const weekEnd = formatDate(weekDates[4]);
+  const scheduleCount = state.schedules.filter(s =>
+    s.memberId === memberId && s.date >= weekStart && s.date <= weekEnd
+  ).length;
+  const incompleteTodos = state.todos.filter(t => t.assigneeId === memberId && !t.done).length;
+  const needSupport = scheduleCount >= 10 || incompleteTodos >= 5;
+  return { scheduleCount, incompleteTodos, needSupport };
 }
 
 // ============================================================
 // Export / Import
 // ============================================================
-
 function exportData() {
-  const data = {
-    exportDate: new Date().toISOString(),
-    members: members,
-    schedules: schedules
-  };
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const data = { exportDate: new Date().toISOString(), members: state.members, schedules: state.schedules, todos: state.todos };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `team-schedule-${formatDate(new Date())}.json`;
+  a.download = `part-schedule-${formatDate(new Date())}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -145,829 +195,500 @@ function importData(file) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.members && data.schedules) {
-        members = data.members;
-        schedules = data.schedules;
-        saveMembers();
-        saveSchedules();
-        render();
-        alert('데이터를 성공적으로 가져왔습니다.');
-      } else {
-        alert('올바른 형식의 파일이 아닙니다.');
-      }
-    } catch (err) {
-      alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message);
-    }
+      if (data.members) { state.members = data.members; saveMembers(); }
+      if (data.schedules) { state.schedules = data.schedules; saveSchedules(); }
+      if (data.todos) { state.todos = data.todos; saveTodos(); }
+      renderAll();
+      alert('데이터를 성공적으로 가져왔습니다.');
+    } catch (err) { alert('파일 형식 오류: ' + err.message); }
   };
   reader.readAsText(file);
 }
 
 
 // ============================================================
-// Schedule CRUD
+// Rendering - Attendance Bar
 // ============================================================
+function renderAttendanceBar() {
+  const chips = document.getElementById('attendance-chips');
+  const alertEl = document.getElementById('attendance-alert');
+  const alertNames = document.getElementById('alert-names');
+  const today = formatDate(new Date());
 
-function getSchedule(memberId, date) {
-  const dateStr = formatDate(date);
-  return schedules.find(s => s.memberId === memberId && s.date === dateStr);
-}
+  let chipsHtml = '';
+  const needSupportList = [];
 
-function setSchedule(memberId, date, status, note) {
-  const dateStr = typeof date === 'string' ? date : formatDate(date);
-  const existing = schedules.find(s => s.memberId === memberId && s.date === dateStr);
+  state.members.forEach(member => {
+    const schedule = state.schedules.find(s => s.memberId === member.id && s.date === today);
+    const status = schedule ? schedule.status : '출근';
+    const color = STATUS_COLORS[status];
+    chipsHtml += `<span class="attendance-chip"><span class="chip-dot" style="background:${color}"></span>${member.name} <small>${status}</small></span>`;
 
-  if (existing) {
-    if (status) {
-      existing.status = status;
-      existing.note = note || '';
-    } else {
-      // Remove if status is cleared
-      schedules = schedules.filter(s => s.id !== existing.id);
-    }
-  } else if (status) {
-    schedules.push({
-      id: generateId(),
-      memberId: memberId,
-      date: dateStr,
-      status: status,
-      note: note || ''
-    });
-  }
-
-  saveSchedules();
-}
-
-// ============================================================
-// Member Management
-// ============================================================
-
-function addMember(name, color, department) {
-  const member = {
-    id: generateId(),
-    name: name,
-    color: color || '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
-    department: department || ''
-  };
-  members.push(member);
-  saveMembers();
-  render();
-}
-
-function removeMember(memberId) {
-  if (confirm('이 팀원을 삭제하시겠습니까?')) {
-    members = members.filter(m => m.id !== memberId);
-    schedules = schedules.filter(s => s.memberId !== memberId);
-    saveMembers();
-    saveSchedules();
-    render();
-  }
-}
-
-function updateMember(memberId, name, color, department) {
-  const member = members.find(m => m.id === memberId);
-  if (member) {
-    member.name = name;
-    member.color = color;
-    member.department = department;
-    saveMembers();
-    render();
-  }
-}
-
-
-// ============================================================
-// Week Navigation
-// ============================================================
-
-function prevWeek() {
-  currentDate.setDate(currentDate.getDate() - 7);
-  render();
-}
-
-function nextWeek() {
-  currentDate.setDate(currentDate.getDate() + 7);
-  render();
-}
-
-function goToday() {
-  currentDate = new Date();
-  render();
-}
-
-// ============================================================
-// Rendering
-// ============================================================
-
-function render() {
-  const app = document.getElementById('app');
-  const weekDates = getWeekDates(currentDate);
-  const weekStart = formatDate(weekDates[0]);
-  const weekEnd = formatDate(weekDates[4]);
-
-  app.innerHTML = `
-    <div class="container">
-      <header class="header">
-        <h1>📅 팀 일정관리</h1>
-        <div class="header-actions">
-          <button onclick="showMemberModal()" class="btn btn-primary">👥 팀원 관리</button>
-          <button onclick="exportData()" class="btn btn-secondary">📤 내보내기</button>
-          <label class="btn btn-secondary">
-            📥 가져오기
-            <input type="file" accept=".json" onchange="handleImport(event)" style="display:none">
-          </label>
-          <button onclick="clearAllData()" class="btn btn-danger">🗑️ 초기화</button>
-        </div>
-      </header>
-
-      <nav class="week-nav">
-        <button onclick="prevWeek()" class="btn btn-nav">◀ 이전 주</button>
-        <button onclick="goToday()" class="btn btn-nav">오늘</button>
-        <span class="week-range">${weekStart} ~ ${weekEnd}</span>
-        <button onclick="nextWeek()" class="btn btn-nav">다음 주 ▶</button>
-      </nav>
-
-      <div class="schedule-grid">
-        <table>
-          <thead>
-            <tr>
-              <th class="member-col">팀원</th>
-              ${weekDates.map(d => `
-                <th class="day-col ${formatDate(d) === formatDate(new Date()) ? 'today' : ''}">
-                  ${getDayName(d)} (${new Date(d).getMonth() + 1}/${new Date(d).getDate()})
-                </th>
-              `).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${members.map(member => `
-              <tr>
-                <td class="member-cell">
-                  <span class="member-color" style="background:${member.color}"></span>
-                  <span class="member-name">${member.name}</span>
-                  <span class="member-dept">${member.department}</span>
-                </td>
-                ${weekDates.map(d => {
-                  const schedule = getSchedule(member.id, d);
-                  const dateStr = formatDate(d);
-                  const cellClass = schedule ? 'has-status' : '';
-                  const bgColor = schedule ? STATUS_COLORS[schedule.status] : '';
-                  const noteIcon = schedule && schedule.note ? ' 📝' : '';
-                  return `
-                    <td class="schedule-cell ${cellClass}"
-                        style="${bgColor ? `background-color: ${bgColor}22; border-left: 3px solid ${bgColor}` : ''}"
-                        data-member-id="${member.id}"
-                        data-date="${dateStr}"
-                        onclick="showStatusSelector(event, '${member.id}', '${dateStr}')"
-                        title="${schedule && schedule.note ? schedule.note : '클릭하여 상태 설정'}">
-                      ${schedule ? `<span class="status-badge" style="background:${bgColor}">${schedule.status}</span>${noteIcon}` : '<span class="empty-cell">+</span>'}
-                    </td>
-                  `;
-                }).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="legend">
-        <span class="legend-title">상태:</span>
-        ${STATUS_TYPES.map(s => `
-          <span class="legend-item">
-            <span class="legend-dot" style="background:${STATUS_COLORS[s]}"></span>${s}
-          </span>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
-
-// ============================================================
-// Status Selector Popup
-// ============================================================
-
-function showStatusSelector(event, memberId, dateStr) {
-  event.stopPropagation();
-  closeAllPopups();
-
-  const cell = event.currentTarget;
-  const rect = cell.getBoundingClientRect();
-  const existing = schedules.find(s => s.memberId === memberId && s.date === dateStr);
-
-  const popup = document.createElement('div');
-  popup.className = 'status-popup';
-  popup.id = 'status-popup';
-
-  popup.innerHTML = `
-    <div class="popup-header">
-      <strong>${members.find(m => m.id === memberId)?.name || ''}</strong>
-      <span>${dateStr}</span>
-      <button onclick="closeAllPopups()" class="popup-close">✕</button>
-    </div>
-    <div class="popup-statuses">
-      ${STATUS_TYPES.map(status => `
-        <button class="status-option ${existing && existing.status === status ? 'active' : ''}"
-                style="border-color: ${STATUS_COLORS[status]}; ${existing && existing.status === status ? `background: ${STATUS_COLORS[status]}; color: white;` : ''}"
-                onclick="selectStatus('${memberId}', '${dateStr}', '${status}')">
-          ${status}
-        </button>
-      `).join('')}
-    </div>
-    <div class="popup-note">
-      <input type="text" id="status-note" placeholder="메모 입력 (선택사항)"
-             value="${existing && existing.note ? existing.note : ''}"
-             onkeydown="if(event.key==='Enter') applyStatusWithNote('${memberId}', '${dateStr}')">
-    </div>
-    <div class="popup-actions">
-      ${existing ? `<button class="btn btn-danger btn-sm" onclick="removeStatus('${memberId}', '${dateStr}')">삭제</button>` : ''}
-      <button class="btn btn-primary btn-sm" onclick="applyStatusWithNote('${memberId}', '${dateStr}')">확인</button>
-    </div>
-  `;
-
-  // Position popup near the cell
-  popup.style.position = 'fixed';
-  popup.style.top = `${Math.min(rect.bottom + 5, window.innerHeight - 300)}px`;
-  popup.style.left = `${Math.min(rect.left, window.innerWidth - 250)}px`;
-  popup.style.zIndex = '1000';
-
-  document.body.appendChild(popup);
-
-  // Close popup when clicking outside
-  setTimeout(() => {
-    document.addEventListener('click', handleOutsideClick);
-  }, 0);
-}
-
-let selectedStatusTemp = null;
-
-function selectStatus(memberId, dateStr, status) {
-  selectedStatusTemp = status;
-  const buttons = document.querySelectorAll('.status-option');
-  buttons.forEach(btn => {
-    btn.classList.remove('active');
-    btn.style.background = '';
-    btn.style.color = '';
+    const wl = getWorkload(member.id);
+    if (wl.needSupport) needSupportList.push(member.name);
   });
-  const activeBtn = [...buttons].find(btn => btn.textContent.trim() === status);
-  if (activeBtn) {
-    activeBtn.classList.add('active');
-    activeBtn.style.background = STATUS_COLORS[status];
-    activeBtn.style.color = 'white';
-  }
-}
 
-function applyStatusWithNote(memberId, dateStr) {
-  const noteInput = document.getElementById('status-note');
-  const note = noteInput ? noteInput.value.trim() : '';
-  const existing = schedules.find(s => s.memberId === memberId && s.date === dateStr);
-  const status = selectedStatusTemp || (existing ? existing.status : null);
+  chips.innerHTML = chipsHtml;
 
-  if (status) {
-    setSchedule(memberId, dateStr, status, note);
-    closeAllPopups();
-    render();
+  if (needSupportList.length > 0) {
+    alertEl.hidden = false;
+    alertNames.textContent = needSupportList.join(', ');
   } else {
-    alert('상태를 선택해주세요.');
-  }
-  selectedStatusTemp = null;
-}
-
-function removeStatus(memberId, dateStr) {
-  setSchedule(memberId, dateStr, null, '');
-  closeAllPopups();
-  render();
-}
-
-function closeAllPopups() {
-  const popup = document.getElementById('status-popup');
-  if (popup) popup.remove();
-  const modal = document.getElementById('member-modal');
-  if (modal) modal.style.display = 'none';
-  document.removeEventListener('click', handleOutsideClick);
-  selectedStatusTemp = null;
-}
-
-function handleOutsideClick(event) {
-  const popup = document.getElementById('status-popup');
-  if (popup && !popup.contains(event.target)) {
-    closeAllPopups();
+    alertEl.hidden = true;
   }
 }
 
-
 // ============================================================
-// Member Management Modal
+// Rendering - Calendar
 // ============================================================
+function renderCalendar() {
+  const weekDates = getWeekDates(state.currentDate);
+  const today = formatDate(new Date());
 
-function showMemberModal() {
-  closeAllPopups();
+  // Update header dates
+  document.getElementById('week-label').textContent = getWeekLabel(weekDates);
 
-  let modal = document.getElementById('member-modal');
-  if (modal) modal.remove();
-
-  modal = document.createElement('div');
-  modal.id = 'member-modal';
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>👥 팀원 관리</h2>
-        <button onclick="closeMemberModal()" class="popup-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="member-form">
-          <h3>팀원 추가</h3>
-          <div class="form-row">
-            <input type="text" id="new-member-name" placeholder="이름" class="form-input">
-            <input type="text" id="new-member-dept" placeholder="부서" class="form-input">
-            <input type="color" id="new-member-color" value="#4CAF50" class="form-color">
-            <button onclick="handleAddMember()" class="btn btn-primary">추가</button>
-          </div>
-        </div>
-        <div class="member-list">
-          <h3>현재 팀원 (${members.length}명)</h3>
-          <table class="member-table">
-            <thead>
-              <tr>
-                <th>색상</th>
-                <th>이름</th>
-                <th>부서</th>
-                <th>작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${members.map(m => `
-                <tr>
-                  <td><span class="member-color-dot" style="background:${m.color}"></span></td>
-                  <td>${m.name}</td>
-                  <td>${m.department}</td>
-                  <td>
-                    <button onclick="editMemberPrompt('${m.id}')" class="btn btn-sm btn-secondary">수정</button>
-                    <button onclick="removeMember('${m.id}')" class="btn btn-sm btn-danger">삭제</button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-  modal.style.display = 'flex';
-
-  // Close on overlay click
-  modal.addEventListener('click', function(e) {
-    if (e.target === modal) closeMemberModal();
+  // Update th with dates
+  const ths = document.querySelectorAll('.calendar-grid th.col-day');
+  const dayNames = getDayNames();
+  ths.forEach((th, i) => {
+    const d = weekDates[i];
+    const dateStr = formatDate(d);
+    th.innerHTML = `${dayNames[i]}<br><small>${d.getMonth()+1}/${d.getDate()}</small>`;
+    th.classList.toggle('today-col', dateStr === today);
   });
-}
 
-function closeMemberModal() {
-  const modal = document.getElementById('member-modal');
-  if (modal) modal.remove();
-}
+  // Build body
+  const tbody = document.getElementById('calendar-body');
+  let html = '';
 
-function handleAddMember() {
-  const name = document.getElementById('new-member-name').value.trim();
-  const dept = document.getElementById('new-member-dept').value.trim();
-  const color = document.getElementById('new-member-color').value;
+  state.members.forEach(member => {
+    html += '<tr>';
+    html += `<td><div class="member-cell"><span class="member-dot" style="background:${member.color}"></span><span class="member-name-text">${member.name}</span></div></td>`;
 
-  if (!name) {
-    alert('이름을 입력해주세요.');
-    return;
-  }
+    weekDates.forEach(d => {
+      const dateStr = formatDate(d);
+      const schedule = getSchedule(member.id, dateStr);
+      if (schedule) {
+        const color = STATUS_COLORS[schedule.status];
+        const noteIcon = schedule.note ? '<span class="cell-note-icon">📝</span>' : '';
+        html += `<td data-member="${member.id}" data-date="${dateStr}" title="${schedule.note || schedule.status}"><span class="cell-badge" style="background:${color}">${schedule.status}</span>${noteIcon}</td>`;
+      } else {
+        html += `<td data-member="${member.id}" data-date="${dateStr}"><span class="cell-empty">+</span></td>`;
+      }
+    });
+    html += '</tr>';
+  });
 
-  addMember(name, color, dept);
-  closeMemberModal();
-  showMemberModal(); // Reopen to show updated list
-}
-
-function editMemberPrompt(memberId) {
-  const member = members.find(m => m.id === memberId);
-  if (!member) return;
-
-  const newName = prompt('이름:', member.name);
-  if (newName === null) return;
-
-  const newDept = prompt('부서:', member.department);
-  if (newDept === null) return;
-
-  const newColor = prompt('색상 (HEX):', member.color);
-  if (newColor === null) return;
-
-  updateMember(memberId, newName || member.name, newColor || member.color, newDept || member.department);
-  closeMemberModal();
-  showMemberModal();
+  tbody.innerHTML = html;
 }
 
 // ============================================================
-// Import Handler
+// Rendering - Dashboard
 // ============================================================
+function renderDashboard() {
+  const today = formatDate(new Date());
+  const totalMembers = state.members.length;
 
-function handleImport(event) {
-  const file = event.target.files[0];
-  if (file) {
-    importData(file);
-    event.target.value = ''; // Reset file input
-  }
-}
+  let tripCount = 0, vacationCount = 0, remoteCount = 0, needSupportCount = 0;
+  const inProgressTodos = state.todos.filter(t => !t.done).length;
 
+  state.members.forEach(member => {
+    const schedule = state.schedules.find(s => s.memberId === member.id && s.date === today);
+    const status = schedule ? schedule.status : '출근';
+    if (status === '출장') tripCount++;
+    if (status === '휴가') vacationCount++;
+    if (status === '재택') remoteCount++;
+    if (getWorkload(member.id).needSupport) needSupportCount++;
+  });
 
-// ============================================================
-// Styles (injected into document)
-// ============================================================
-
-function injectStyles() {
-  const style = document.createElement('style');
-  style.textContent = `
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
-      background: #f5f7fa;
-      color: #333;
-      line-height: 1.6;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .header h1 {
-      font-size: 1.5rem;
-      color: #1a1a2e;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 500;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
-    .btn-primary { background: #4361ee; color: white; }
-    .btn-secondary { background: #e2e8f0; color: #475569; }
-    .btn-danger { background: #ef4444; color: white; }
-    .btn-nav { background: #fff; color: #333; border: 1px solid #ddd; }
-    .btn-nav:hover { background: #f0f0f0; }
-    .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
-
-    .week-nav {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      margin-bottom: 20px;
-      padding: 12px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    .week-range {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #1a1a2e;
-      min-width: 220px;
-      text-align: center;
-    }
-
-    .schedule-grid {
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      overflow-x: auto;
-      margin-bottom: 20px;
-    }
-
-    .schedule-grid table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 700px;
-    }
-
-    .schedule-grid th {
-      padding: 12px 8px;
-      text-align: center;
-      background: #f8fafc;
-      font-weight: 600;
-      font-size: 0.85rem;
-      color: #475569;
-      border-bottom: 2px solid #e2e8f0;
-    }
-
-    .schedule-grid th.today {
-      background: #eef2ff;
-      color: #4361ee;
-    }
-
-    .member-col { text-align: left !important; min-width: 140px; }
-    .day-col { min-width: 100px; }
-
-    .member-cell {
-      padding: 10px 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border-bottom: 1px solid #f1f5f9;
-    }
-
-    .member-color {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .member-name {
-      font-weight: 500;
-      font-size: 0.9rem;
-    }
-
-    .member-dept {
-      font-size: 0.7rem;
-      color: #94a3b8;
-    }
-
-    .schedule-cell {
-      padding: 8px;
-      text-align: center;
-      border-bottom: 1px solid #f1f5f9;
-      cursor: pointer;
-      transition: background 0.15s;
-      min-height: 44px;
-      vertical-align: middle;
-    }
-
-    .schedule-cell:hover {
-      background: #f0f4ff !important;
-    }
-
-    .empty-cell {
-      color: #cbd5e1;
-      font-size: 1.2rem;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: white;
-    }
-
-    .legend {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 16px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      flex-wrap: wrap;
-    }
-
-    .legend-title { font-weight: 600; color: #475569; font-size: 0.85rem; }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.8rem;
-      color: #64748b;
-    }
-
-    .legend-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    /* Status Popup */
-    .status-popup {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-      padding: 16px;
-      min-width: 220px;
-      max-width: 280px;
-    }
-
-    .popup-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #eee;
-      gap: 8px;
-    }
-
-    .popup-header strong { font-size: 0.9rem; }
-    .popup-header span { font-size: 0.75rem; color: #94a3b8; }
-
-    .popup-close {
-      background: none;
-      border: none;
-      font-size: 1.1rem;
-      cursor: pointer;
-      color: #94a3b8;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-
-    .popup-close:hover { background: #f1f5f9; }
-
-    .popup-statuses {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-
-    .status-option {
-      padding: 6px 10px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 500;
-      transition: all 0.15s;
-    }
-
-    .status-option:hover { transform: scale(1.03); }
-    .status-option.active { color: white; }
-
-    .popup-note {
-      margin-bottom: 12px;
-    }
-
-    .popup-note input {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      outline: none;
-    }
-
-    .popup-note input:focus { border-color: #4361ee; }
-
-    .popup-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-
-    .modal-content {
-      background: white;
-      border-radius: 14px;
-      padding: 24px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .modal-header h2 { font-size: 1.2rem; }
-
-    .member-form {
-      margin-bottom: 20px;
-      padding: 16px;
-      background: #f8fafc;
-      border-radius: 10px;
-    }
-
-    .member-form h3 { font-size: 0.9rem; margin-bottom: 10px; color: #475569; }
-
-    .form-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .form-input {
-      padding: 8px 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      outline: none;
-      flex: 1;
-      min-width: 100px;
-    }
-
-    .form-input:focus { border-color: #4361ee; }
-
-    .form-color {
-      width: 40px;
-      height: 36px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      cursor: pointer;
-      padding: 2px;
-    }
-
-    .member-list h3 { font-size: 0.9rem; margin-bottom: 10px; color: #475569; }
-
-    .member-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .member-table th, .member-table td {
-      padding: 8px 12px;
-      text-align: left;
-      border-bottom: 1px solid #f1f5f9;
-      font-size: 0.85rem;
-    }
-
-    .member-table th {
-      font-weight: 600;
-      color: #64748b;
-      font-size: 0.78rem;
-    }
-
-    .member-color-dot {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-    }
-
-    @media (max-width: 768px) {
-      .header { flex-direction: column; align-items: flex-start; }
-      .header-actions { width: 100%; }
-      .week-nav { flex-wrap: wrap; }
-      .form-row { flex-direction: column; }
-      .form-input { width: 100%; }
-    }
+  // Cards
+  const cardsEl = document.getElementById('dashboard-cards');
+  cardsEl.innerHTML = `
+    <div class="dash-card"><span class="dash-card-value">${totalMembers}</span><span class="dash-card-label">전체 인원</span></div>
+    <div class="dash-card"><span class="dash-card-value">${tripCount}</span><span class="dash-card-label">출장</span></div>
+    <div class="dash-card"><span class="dash-card-value">${vacationCount}</span><span class="dash-card-label">휴가</span></div>
+    <div class="dash-card"><span class="dash-card-value">${remoteCount}</span><span class="dash-card-label">재택</span></div>
+    <div class="dash-card ${needSupportCount > 0 ? 'alert' : ''}"><span class="dash-card-value">${needSupportCount}</span><span class="dash-card-label">🔴 지원 필요</span></div>
+    <div class="dash-card"><span class="dash-card-value">${inProgressTodos}</span><span class="dash-card-label">진행중 업무</span></div>
   `;
-  document.head.appendChild(style);
+
+  // Workload table
+  const workloadBody = document.getElementById('workload-body');
+  let wHtml = '';
+  state.members.forEach(member => {
+    const schedule = state.schedules.find(s => s.memberId === member.id && s.date === today);
+    const status = schedule ? schedule.status : '출근';
+    const wl = getWorkload(member.id);
+    const wlClass = wl.needSupport ? 'workload-alert' : 'workload-normal';
+    const wlText = wl.needSupport ? '🔴 지원 필요' : '🟢 정상';
+    wHtml += `<tr>
+      <td><span class="member-color-dot" style="background:${member.color}"></span> ${member.name}</td>
+      <td><span class="status-tag" style="background:${STATUS_COLORS[status]}">${status}</span></td>
+      <td>${wl.scheduleCount}</td>
+      <td>${wl.incompleteTodos}</td>
+      <td class="${wlClass}">${wlText}</td>
+    </tr>`;
+  });
+  workloadBody.innerHTML = wHtml;
+
+  // Summary
+  const summaryEl = document.getElementById('summary-list');
+  summaryEl.innerHTML = `
+    <div class="summary-item"><span class="summary-icon">👥</span> 전체 ${totalMembers}명 중 ${totalMembers - vacationCount - tripCount}명 근무중</div>
+    <div class="summary-item"><span class="summary-icon">✈️</span> 출장 ${tripCount}명</div>
+    <div class="summary-item"><span class="summary-icon">🏖️</span> 휴가 ${vacationCount}명</div>
+    <div class="summary-item"><span class="summary-icon">🏠</span> 재택 ${remoteCount}명</div>
+    <div class="summary-item"><span class="summary-icon">📋</span> 진행중 To Do ${inProgressTodos}건</div>
+    ${needSupportCount > 0 ? `<div class="summary-item"><span class="summary-icon">⚠️</span> 지원 필요 ${needSupportCount}명</div>` : ''}
+  `;
+}
+
+
+// ============================================================
+// Rendering - To Do
+// ============================================================
+function renderTodos() {
+  const list = document.getElementById('todo-list');
+  let filtered = [...state.todos];
+
+  if (state.todoFilter === 'inprogress') filtered = filtered.filter(t => !t.done);
+  else if (state.todoFilter === 'done') filtered = filtered.filter(t => t.done);
+
+  // Sort: incomplete first, then by priority
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  filtered.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<p style="text-align:center;color:var(--color-text-secondary);padding:24px;">등록된 할 일이 없습니다.</p>';
+  } else {
+    let html = '';
+    filtered.forEach(todo => {
+      const assignee = state.members.find(m => m.id === todo.assigneeId);
+      const assigneeName = assignee ? assignee.name : '-';
+      const dueStr = todo.dueDate ? `마감: ${todo.dueDate}` : '';
+      const priorityLabel = { high: '높음', medium: '보통', low: '낮음' }[todo.priority] || '보통';
+
+      html += `
+        <div class="todo-item ${todo.done ? 'done' : ''}">
+          <input type="checkbox" class="todo-check" data-id="${todo.id}" ${todo.done ? 'checked' : ''}>
+          <div class="todo-content">
+            <div class="todo-title">${todo.title}</div>
+            <div class="todo-meta">
+              <span>👤 ${assigneeName}</span>
+              <span class="todo-priority priority-${todo.priority}">${priorityLabel}</span>
+              ${dueStr ? `<span>📅 ${dueStr}</span>` : ''}
+            </div>
+          </div>
+          <button class="todo-delete" data-id="${todo.id}" title="삭제">🗑️</button>
+        </div>
+      `;
+    });
+    list.innerHTML = html;
+  }
+
+  // Progress
+  const total = state.todos.length;
+  const done = state.todos.filter(t => t.done).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('todo-progress-fill').style.width = pct + '%';
+  document.getElementById('todo-progress-percent').textContent = pct + '%';
+}
+
+// ============================================================
+// Rendering - Members
+// ============================================================
+function renderMembers() {
+  const tbody = document.getElementById('member-list-body');
+  document.getElementById('member-count').textContent = state.members.length;
+
+  let html = '';
+  state.members.forEach(member => {
+    const wl = getWorkload(member.id);
+    const wlClass = wl.needSupport ? 'workload-alert' : 'workload-normal';
+    const wlText = wl.needSupport ? '🔴 지원 필요' : '🟢 정상';
+    html += `<tr>
+      <td><span class="member-color-dot" style="background:${member.color}"></span></td>
+      <td>${member.name}</td>
+      <td>${member.department}</td>
+      <td class="${wlClass}">${wlText}</td>
+      <td><button class="btn-danger btn-sm" data-delete-member="${member.id}">삭제</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+// ============================================================
+// Render All
+// ============================================================
+function renderAll() {
+  renderAttendanceBar();
+  renderCalendar();
+  renderDashboard();
+  renderTodos();
+  renderMembers();
+}
+
+// ============================================================
+// View Switching
+// ============================================================
+function switchView(view) {
+  state.currentView = view;
+
+  // Update sidebar
+  document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.view === view);
+  });
+
+  // Show/hide panels
+  document.querySelectorAll('.view-panel').forEach(panel => {
+    panel.hidden = panel.id !== `view-${view}`;
+  });
+
+  // Re-render active view
+  if (view === 'calendar') renderCalendar();
+  else if (view === 'dashboard') renderDashboard();
+  else if (view === 'todo') renderTodos();
+  else if (view === 'members') renderMembers();
+}
+
+// ============================================================
+// Status Modal
+// ============================================================
+function openStatusModal(memberId, dateStr) {
+  const modal = document.getElementById('modal-status');
+  const existing = getSchedule(memberId, dateStr);
+  const member = state.members.find(m => m.id === memberId);
+  const deleteBtn = document.getElementById('btn-delete-status');
+
+  state.statusModal = { memberId, date: dateStr, selectedStatus: existing ? existing.status : null };
+
+  document.getElementById('status-modal-title').textContent = `${member ? member.name : ''} - ${dateStr}`;
+  document.getElementById('status-note').value = existing ? existing.note : '';
+  deleteBtn.hidden = !existing;
+
+  // Highlight active status
+  document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.status === (existing ? existing.status : ''));
+  });
+
+  modal.hidden = false;
+}
+
+function closeStatusModal() {
+  document.getElementById('modal-status').hidden = true;
+  state.statusModal = { memberId: null, date: null, selectedStatus: null };
+}
+
+function saveStatus() {
+  const { memberId, date, selectedStatus } = state.statusModal;
+  if (!selectedStatus) { alert('상태를 선택해주세요.'); return; }
+  const note = document.getElementById('status-note').value.trim();
+  setSchedule(memberId, date, selectedStatus, note);
+  closeStatusModal();
+  renderAll();
+}
+
+function deleteStatus() {
+  const { memberId, date } = state.statusModal;
+  setSchedule(memberId, date, null, '');
+  closeStatusModal();
+  renderAll();
+}
+
+// ============================================================
+// Todo Modal
+// ============================================================
+function openTodoModal() {
+  const modal = document.getElementById('modal-todo');
+  const select = document.getElementById('todo-assignee');
+
+  // Populate assignee dropdown
+  let optHtml = '<option value="">-- 선택 --</option>';
+  state.members.forEach(m => { optHtml += `<option value="${m.id}">${m.name}</option>`; });
+  select.innerHTML = optHtml;
+
+  // Reset form
+  document.getElementById('todo-title').value = '';
+  document.getElementById('todo-priority').value = 'medium';
+  document.getElementById('todo-due').value = '';
+  document.getElementById('todo-desc').value = '';
+
+  modal.hidden = false;
+}
+
+function closeTodoModal() {
+  document.getElementById('modal-todo').hidden = true;
+}
+
+function saveTodo() {
+  const title = document.getElementById('todo-title').value.trim();
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  const assigneeId = document.getElementById('todo-assignee').value;
+  const priority = document.getElementById('todo-priority').value;
+  const dueDate = document.getElementById('todo-due').value;
+  const desc = document.getElementById('todo-desc').value.trim();
+  addTodo(title, assigneeId, priority, dueDate, desc);
+  closeTodoModal();
+  renderTodos();
+  renderDashboard();
+  renderAttendanceBar();
+}
+
+
+// ============================================================
+// Event Bindings
+// ============================================================
+function bindEvents() {
+  // Sidebar navigation
+  document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      switchView(item.dataset.view);
+      // Close mobile sidebar
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('open');
+    });
+  });
+
+  // Mobile hamburger
+  document.getElementById('btn-hamburger').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+  });
+
+  // Mobile overlay close
+  document.getElementById('sidebar-overlay').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  });
+
+  // Week navigation
+  document.getElementById('btn-prev-week').addEventListener('click', () => {
+    state.currentDate.setDate(state.currentDate.getDate() - 7);
+    renderCalendar();
+    renderAttendanceBar();
+  });
+
+  document.getElementById('btn-next-week').addEventListener('click', () => {
+    state.currentDate.setDate(state.currentDate.getDate() + 7);
+    renderCalendar();
+    renderAttendanceBar();
+  });
+
+  document.getElementById('btn-today').addEventListener('click', () => {
+    state.currentDate = new Date();
+    renderCalendar();
+    renderAttendanceBar();
+  });
+
+  // Calendar cell clicks (event delegation)
+  document.getElementById('calendar-body').addEventListener('click', (e) => {
+    const td = e.target.closest('td[data-member]');
+    if (td) {
+      openStatusModal(td.dataset.member, td.dataset.date);
+    }
+  });
+
+  // Status modal
+  document.getElementById('btn-close-status').addEventListener('click', closeStatusModal);
+  document.getElementById('btn-save-status').addEventListener('click', saveStatus);
+  document.getElementById('btn-delete-status').addEventListener('click', deleteStatus);
+
+  document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.statusModal.selectedStatus = btn.dataset.status;
+      document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Close status modal on overlay click
+  document.getElementById('modal-status').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeStatusModal();
+  });
+
+  // Todo modal
+  document.getElementById('btn-add-todo').addEventListener('click', openTodoModal);
+  document.getElementById('btn-close-todo').addEventListener('click', closeTodoModal);
+  document.getElementById('btn-cancel-todo').addEventListener('click', closeTodoModal);
+  document.getElementById('btn-save-todo').addEventListener('click', saveTodo);
+
+  document.getElementById('modal-todo').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeTodoModal();
+  });
+
+  // Todo filters
+  document.getElementById('todo-filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-btn');
+    if (btn) {
+      state.todoFilter = btn.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTodos();
+    }
+  });
+
+  // Todo list clicks (check/delete via delegation)
+  document.getElementById('todo-list').addEventListener('click', (e) => {
+    const check = e.target.closest('.todo-check');
+    if (check) {
+      toggleTodo(check.dataset.id);
+      renderTodos();
+      renderDashboard();
+      renderAttendanceBar();
+      return;
+    }
+    const del = e.target.closest('.todo-delete');
+    if (del) {
+      if (confirm('이 할 일을 삭제하시겠습니까?')) {
+        deleteTodo(del.dataset.id);
+        renderTodos();
+        renderDashboard();
+        renderAttendanceBar();
+      }
+    }
+  });
+
+  // Member form
+  document.getElementById('form-add-member').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('input-member-name').value.trim();
+    const dept = document.getElementById('input-member-dept').value.trim();
+    const color = document.getElementById('input-member-color').value;
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+    addMember(name, color, dept);
+    document.getElementById('input-member-name').value = '';
+    document.getElementById('input-member-dept').value = '';
+    renderAll();
+  });
+
+  // Member delete (delegation)
+  document.getElementById('member-list-body').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-delete-member]');
+    if (btn) {
+      if (confirm('이 팀원을 삭제하시겠습니까? 관련 일정/할 일도 함께 삭제됩니다.')) {
+        removeMember(btn.dataset.deleteMember);
+        renderAll();
+      }
+    }
+  });
+
+  // Export / Import
+  document.getElementById('btn-export').addEventListener('click', exportData);
+  document.getElementById('btn-import').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) { importData(file); e.target.value = ''; }
+  });
 }
 
 // ============================================================
 // Initialization
 // ============================================================
-
-document.addEventListener('DOMContentLoaded', function() {
-  // Create app container if not exists
-  if (!document.getElementById('app')) {
-    const appDiv = document.createElement('div');
-    appDiv.id = 'app';
-    document.body.appendChild(appDiv);
-  }
-
-  injectStyles();
+document.addEventListener('DOMContentLoaded', () => {
   loadData();
-  render();
+  bindEvents();
+  renderAll();
 });
