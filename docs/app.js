@@ -1,694 +1,539 @@
 /**
- * 패키징기술파트 Schedule - App Logic
- * Vanilla JS, localStorage-based
+ * 패키징기술파트 Schedule - App
  */
 
-// ============================================================
-// Constants
-// ============================================================
-const STATUS_TYPES = ['출근', '출장', '휴가', '공가', '재택', '교육'];
+// === Constants ===
+const STATUS_LIST = ['출장', '휴가', '교육', '기타'];
+const STATUS_COLOR = { '출장': '#f59e0b', '휴가': '#3b82f6', '교육': '#8b5cf6', '기타': '#6b7280' };
+const STATUS_CLASS = { '출장': 'badge-trip', '휴가': 'badge-vacation', '교육': 'badge-training', '기타': 'badge-etc' };
+const POSITIONS = ['선임연구원', '책임연구원', '파트장'];
 
-const STATUS_COLORS = {
-  '출근': '#16a34a',
-  '출장': '#f59e0b',
-  '휴가': '#3b82f6',
-  '공가': '#8b5cf6',
-  '재택': '#0d9488',
-  '교육': '#ea580c'
-};
-
-const STORAGE_KEYS = {
-  members: 'partSchedule_members',
-  schedules: 'partSchedule_schedules',
-  todos: 'partSchedule_todos'
+const KEYS = {
+  members: 'ps_members',
+  schedules: 'ps_schedules',
+  todos: 'ps_todos',
+  notices: 'ps_notices'
 };
 
 const DEFAULT_MEMBERS = [
-  { id: uid(), name: '김철수', color: '#E91E63', department: '패키징기술파트' },
-  { id: uid(), name: '이영희', color: '#3F51B5', department: '패키징기술파트' },
-  { id: uid(), name: '박민수', color: '#009688', department: '패키징기술파트' },
-  { id: uid(), name: '정수진', color: '#FF5722', department: '패키징기술파트' },
-  { id: uid(), name: '최동혁', color: '#795548', department: '패키징기술파트' },
-  { id: uid(), name: '한지원', color: '#607D8B', department: '패키징기술파트' }
+  { id: uid(), name: '홍길동', position: '파트장', empNo: '', email: '', color: '#E91E63' },
+  { id: uid(), name: '김철수', position: '책임연구원', empNo: '', email: '', color: '#3F51B5' },
+  { id: uid(), name: '이영희', position: '선임연구원', empNo: '', email: '', color: '#009688' },
+  { id: uid(), name: '박민수', position: '책임연구원', empNo: '', email: '', color: '#FF5722' },
+  { id: uid(), name: '정수진', position: '선임연구원', empNo: '', email: '', color: '#795548' },
+  { id: uid(), name: '한지원', position: '선임연구원', empNo: '', email: '', color: '#607D8B' }
 ];
 
-// ============================================================
-// State
-// ============================================================
-let state = {
-  currentView: 'calendar',
-  currentDate: new Date(),
-  members: [],
-  schedules: [],
-  todos: [],
-  todoFilter: 'all',
-  statusModal: { memberId: null, date: null, selectedStatus: null }
-};
+// === State ===
+let members = [];
+let schedules = [];
+let todos = [];
+let notices = [];
+let currentDate = new Date();
+let currentView = 'calendar';
+let todoFilter = 'all';
+let todoMemberFilter = 'all';
+let statusCtx = { memberId: null, date: null, selected: null };
 
-// ============================================================
-// Helpers
-// ============================================================
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-}
-
-function formatDate(d) {
-  const date = new Date(d);
-  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-}
-
-function getWeekDates(date) {
+// === Helpers ===
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 8); }
+function fmt(d) { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; }
+function weekDates(date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d);
-  monday.setDate(diff);
-  const dates = [];
-  for (let i = 0; i < 5; i++) {
-    const curr = new Date(monday);
-    curr.setDate(monday.getDate() + i);
-    dates.push(curr);
-  }
-  return dates;
+  const mon = new Date(d); mon.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+  return Array.from({length: 5}, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate()+i); return x; });
+}
+function weekLabel(dates) {
+  const s = dates[0], e = dates[4];
+  return `${s.getFullYear()}.${s.getMonth()+1}.${s.getDate()} ~ ${e.getMonth()+1}.${e.getDate()}`;
 }
 
-function getWeekLabel(dates) {
-  const s = dates[0];
-  const e = dates[4];
-  return `${s.getFullYear()}년 ${s.getMonth()+1}월 ${Math.ceil(s.getDate()/7)}주차 (${s.getMonth()+1}/${s.getDate()} ~ ${e.getMonth()+1}/${e.getDate()})`;
+// === Persistence ===
+function load() {
+  members = JSON.parse(localStorage.getItem(KEYS.members) || 'null') || [...DEFAULT_MEMBERS];
+  schedules = JSON.parse(localStorage.getItem(KEYS.schedules) || '[]');
+  todos = JSON.parse(localStorage.getItem(KEYS.todos) || '[]');
+  notices = JSON.parse(localStorage.getItem(KEYS.notices) || '[]');
+  save();
+}
+function save() {
+  localStorage.setItem(KEYS.members, JSON.stringify(members));
+  localStorage.setItem(KEYS.schedules, JSON.stringify(schedules));
+  localStorage.setItem(KEYS.todos, JSON.stringify(todos));
+  localStorage.setItem(KEYS.notices, JSON.stringify(notices));
 }
 
-function getDayNames() { return ['월','화','수','목','금']; }
-
-// ============================================================
-// Data Persistence
-// ============================================================
-function loadData() {
-  const m = localStorage.getItem(STORAGE_KEYS.members);
-  const s = localStorage.getItem(STORAGE_KEYS.schedules);
-  const t = localStorage.getItem(STORAGE_KEYS.todos);
-  state.members = m ? JSON.parse(m) : [...DEFAULT_MEMBERS];
-  state.schedules = s ? JSON.parse(s) : [];
-  state.todos = t ? JSON.parse(t) : [];
-  if (!m) saveMembers();
-  if (!s) saveSchedules();
-  if (!t) saveTodos();
+// === Schedule CRUD ===
+function getSch(memberId, dateStr) { return schedules.find(s => s.memberId === memberId && s.date === dateStr); }
+function setSch(memberId, dateStr, status, note) {
+  const idx = schedules.findIndex(s => s.memberId === memberId && s.date === dateStr);
+  if (idx >= 0) { if (status) { schedules[idx].status = status; schedules[idx].note = note||''; } else { schedules.splice(idx, 1); } }
+  else if (status) { schedules.push({ id: uid(), memberId, date: dateStr, status, note: note||'' }); }
+  save();
 }
 
-function saveMembers() { localStorage.setItem(STORAGE_KEYS.members, JSON.stringify(state.members)); }
-function saveSchedules() { localStorage.setItem(STORAGE_KEYS.schedules, JSON.stringify(state.schedules)); }
-function saveTodos() { localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(state.todos)); }
-
-// ============================================================
-// Schedule CRUD
-// ============================================================
-function getSchedule(memberId, dateStr) {
-  return state.schedules.find(s => s.memberId === memberId && s.date === dateStr);
+// === Member CRUD ===
+function addMember(name, position, empNo, email, color) {
+  members.push({ id: uid(), name, position, empNo: empNo||'', email: email||'', color }); save();
+}
+function updateMember(id, data) {
+  const m = members.find(x => x.id === id);
+  if (m) { Object.assign(m, data); save(); }
+}
+function deleteMember(id) {
+  if (!confirm('팀원을 삭제하면 관련 일정/할일도 삭제됩니다. 계속할까요?')) return;
+  members = members.filter(x => x.id !== id);
+  schedules = schedules.filter(x => x.memberId !== id);
+  todos = todos.filter(x => x.assigneeId !== id);
+  save(); renderAll();
 }
 
-function setSchedule(memberId, dateStr, status, note) {
-  const idx = state.schedules.findIndex(s => s.memberId === memberId && s.date === dateStr);
-  if (idx >= 0) {
-    if (status) {
-      state.schedules[idx].status = status;
-      state.schedules[idx].note = note || '';
-    } else {
-      state.schedules.splice(idx, 1);
-    }
-  } else if (status) {
-    state.schedules.push({ id: uid(), memberId, date: dateStr, status, note: note || '' });
-  }
-  saveSchedules();
+// === Todo CRUD ===
+function addTodo(title, assigneeId, priority, dueDate, needSupport, desc) {
+  todos.push({ id: uid(), title, assigneeId, priority, dueDate, needSupport: !!needSupport, description: desc||'', done: false, createdAt: new Date().toISOString() });
+  save();
 }
+function toggleTodo(id) { const t = todos.find(x => x.id === id); if (t) { t.done = !t.done; save(); } }
+function delTodo(id) { todos = todos.filter(x => x.id !== id); save(); }
 
-// ============================================================
-// Member CRUD
-// ============================================================
-function addMember(name, color, department) {
-  state.members.push({ id: uid(), name, color, department: department || '' });
-  saveMembers();
+// === Notice CRUD ===
+function addNotice(title, content) {
+  notices.unshift({ id: uid(), title, content, date: new Date().toISOString() }); save();
 }
+function delNotice(id) { notices = notices.filter(x => x.id !== id); save(); }
 
-function removeMember(memberId) {
-  state.members = state.members.filter(m => m.id !== memberId);
-  state.schedules = state.schedules.filter(s => s.memberId !== memberId);
-  state.todos = state.todos.filter(t => t.assigneeId !== memberId);
-  saveMembers();
-  saveSchedules();
-  saveTodos();
-}
-
-// ============================================================
-// Todo CRUD
-// ============================================================
-function addTodo(title, assigneeId, priority, dueDate, desc) {
-  state.todos.push({
-    id: uid(), title, assigneeId, priority: priority || 'medium',
-    dueDate: dueDate || '', description: desc || '', done: false, createdAt: new Date().toISOString()
-  });
-  saveTodos();
-}
-
-function toggleTodo(todoId) {
-  const t = state.todos.find(x => x.id === todoId);
-  if (t) { t.done = !t.done; saveTodos(); }
-}
-
-function deleteTodo(todoId) {
-  state.todos = state.todos.filter(x => x.id !== todoId);
-  saveTodos();
-}
-
-// ============================================================
-// Workload Calculation
-// ============================================================
+// === Workload ===
 function getWorkload(memberId) {
-  const weekDates = getWeekDates(state.currentDate);
-  const weekStart = formatDate(weekDates[0]);
-  const weekEnd = formatDate(weekDates[4]);
-  const scheduleCount = state.schedules.filter(s =>
-    s.memberId === memberId && s.date >= weekStart && s.date <= weekEnd
-  ).length;
-  const incompleteTodos = state.todos.filter(t => t.assigneeId === memberId && !t.done).length;
-  const needSupport = scheduleCount >= 10 || incompleteTodos >= 5;
-  return { scheduleCount, incompleteTodos, needSupport };
-}
-
-// ============================================================
-// Export / Import
-// ============================================================
-function exportData() {
-  const data = { exportDate: new Date().toISOString(), members: state.members, schedules: state.schedules, todos: state.todos };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `part-schedule-${formatDate(new Date())}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function importData(file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (data.members) { state.members = data.members; saveMembers(); }
-      if (data.schedules) { state.schedules = data.schedules; saveSchedules(); }
-      if (data.todos) { state.todos = data.todos; saveTodos(); }
-      renderAll();
-      alert('데이터를 성공적으로 가져왔습니다.');
-    } catch (err) { alert('파일 형식 오류: ' + err.message); }
-  };
-  reader.readAsText(file);
+  const incomplete = todos.filter(t => t.assigneeId === memberId && !t.done).length;
+  const hasSupport = todos.some(t => t.assigneeId === memberId && !t.done && t.needSupport);
+  return { incomplete, needSupport: hasSupport || incomplete >= 5 };
 }
 
 
-// ============================================================
-// Rendering - Attendance Bar
-// ============================================================
-function renderAttendanceBar() {
-  const chips = document.getElementById('attendance-chips');
-  const alertEl = document.getElementById('attendance-alert');
-  const alertNames = document.getElementById('alert-names');
-  const today = formatDate(new Date());
-
-  let chipsHtml = '';
-  const needSupportList = [];
-
-  state.members.forEach(member => {
-    const schedule = state.schedules.find(s => s.memberId === member.id && s.date === today);
-    const status = schedule ? schedule.status : '출근';
-    const color = STATUS_COLORS[status];
-    chipsHtml += `<span class="attendance-chip"><span class="chip-dot" style="background:${color}"></span>${member.name} <small>${status}</small></span>`;
-
-    const wl = getWorkload(member.id);
-    if (wl.needSupport) needSupportList.push(member.name);
-  });
-
-  chips.innerHTML = chipsHtml;
-
-  if (needSupportList.length > 0) {
-    alertEl.hidden = false;
-    alertNames.textContent = needSupportList.join(', ');
-  } else {
-    alertEl.hidden = true;
-  }
-}
-
-// ============================================================
-// Rendering - Calendar
-// ============================================================
+// === Render: Calendar ===
 function renderCalendar() {
-  const weekDates = getWeekDates(state.currentDate);
-  const today = formatDate(new Date());
+  const dates = weekDates(currentDate);
+  const today = fmt(new Date());
+  const dayNames = ['월','화','수','목','금'];
 
-  // Update header dates
-  document.getElementById('week-label').textContent = getWeekLabel(weekDates);
+  document.getElementById('week-label').textContent = weekLabel(dates);
 
-  // Update th with dates
-  const ths = document.querySelectorAll('.calendar-grid th.col-day');
-  const dayNames = getDayNames();
-  ths.forEach((th, i) => {
-    const d = weekDates[i];
-    const dateStr = formatDate(d);
-    th.innerHTML = `${dayNames[i]}<br><small>${d.getMonth()+1}/${d.getDate()}</small>`;
-    th.classList.toggle('today-col', dateStr === today);
-  });
+  // Update headers
+  const ths = document.querySelectorAll('#schedule-table thead th');
+  for (let i = 1; i <= 5; i++) {
+    const d = dates[i-1];
+    ths[i].innerHTML = `${dayNames[i-1]} <small>${d.getMonth()+1}/${d.getDate()}</small>`;
+    ths[i].classList.toggle('today-th', fmt(d) === today);
+  }
 
-  // Build body
-  const tbody = document.getElementById('calendar-body');
+  // Body
+  const tbody = document.getElementById('schedule-body');
   let html = '';
-
-  state.members.forEach(member => {
+  members.forEach(m => {
     html += '<tr>';
-    html += `<td><div class="member-cell"><span class="member-dot" style="background:${member.color}"></span><span class="member-name-text">${member.name}</span></div></td>`;
-
-    weekDates.forEach(d => {
-      const dateStr = formatDate(d);
-      const schedule = getSchedule(member.id, dateStr);
-      if (schedule) {
-        const color = STATUS_COLORS[schedule.status];
-        const noteIcon = schedule.note ? '<span class="cell-note-icon">📝</span>' : '';
-        html += `<td data-member="${member.id}" data-date="${dateStr}" title="${schedule.note || schedule.status}"><span class="cell-badge" style="background:${color}">${schedule.status}</span>${noteIcon}</td>`;
+    html += `<td><div class="sch-member"><span class="sch-dot" style="background:${m.color}"></span>${m.name}</div></td>`;
+    dates.forEach(d => {
+      const ds = fmt(d);
+      const sch = getSch(m.id, ds);
+      if (sch) {
+        const cls = STATUS_CLASS[sch.status] || 'badge-etc';
+        const note = sch.note ? `<span class="cell-note">📝</span>` : '';
+        html += `<td class="cell-click" data-mid="${m.id}" data-date="${ds}" title="${sch.note||sch.status}"><span class="badge ${cls}">${sch.status}</span>${note}</td>`;
       } else {
-        html += `<td data-member="${member.id}" data-date="${dateStr}"><span class="cell-empty">+</span></td>`;
+        html += `<td class="cell-click" data-mid="${m.id}" data-date="${ds}"><span class="cell-empty">·</span></td>`;
       }
     });
     html += '</tr>';
   });
-
   tbody.innerHTML = html;
 }
 
-// ============================================================
-// Rendering - Dashboard
-// ============================================================
+// === Render: Dashboard ===
 function renderDashboard() {
-  const today = formatDate(new Date());
-  const totalMembers = state.members.length;
+  const today = fmt(new Date());
+  let trip = 0, vac = 0, training = 0, supportCount = 0;
+  const inProgress = todos.filter(t => !t.done).length;
 
-  let tripCount = 0, vacationCount = 0, remoteCount = 0, needSupportCount = 0;
-  const inProgressTodos = state.todos.filter(t => !t.done).length;
-
-  state.members.forEach(member => {
-    const schedule = state.schedules.find(s => s.memberId === member.id && s.date === today);
-    const status = schedule ? schedule.status : '출근';
-    if (status === '출장') tripCount++;
-    if (status === '휴가') vacationCount++;
-    if (status === '재택') remoteCount++;
-    if (getWorkload(member.id).needSupport) needSupportCount++;
+  members.forEach(m => {
+    const sch = getSch(m.id, today);
+    if (sch) { if (sch.status === '출장') trip++; if (sch.status === '휴가') vac++; if (sch.status === '교육') training++; }
+    if (getWorkload(m.id).needSupport) supportCount++;
   });
 
-  // Cards
-  const cardsEl = document.getElementById('dashboard-cards');
-  cardsEl.innerHTML = `
-    <div class="dash-card"><span class="dash-card-value">${totalMembers}</span><span class="dash-card-label">전체 인원</span></div>
-    <div class="dash-card"><span class="dash-card-value">${tripCount}</span><span class="dash-card-label">출장</span></div>
-    <div class="dash-card"><span class="dash-card-value">${vacationCount}</span><span class="dash-card-label">휴가</span></div>
-    <div class="dash-card"><span class="dash-card-value">${remoteCount}</span><span class="dash-card-label">재택</span></div>
-    <div class="dash-card ${needSupportCount > 0 ? 'alert' : ''}"><span class="dash-card-value">${needSupportCount}</span><span class="dash-card-label">🔴 지원 필요</span></div>
-    <div class="dash-card"><span class="dash-card-value">${inProgressTodos}</span><span class="dash-card-label">진행중 업무</span></div>
+  document.getElementById('dash-cards').innerHTML = `
+    <div class="dash-card"><div class="dash-card-val">${members.length}</div><div class="dash-card-lbl">전체 인원</div></div>
+    <div class="dash-card"><div class="dash-card-val">${members.length - trip - vac}</div><div class="dash-card-lbl">출근</div></div>
+    <div class="dash-card"><div class="dash-card-val">${trip}</div><div class="dash-card-lbl">출장</div></div>
+    <div class="dash-card"><div class="dash-card-val">${vac}</div><div class="dash-card-lbl">휴가</div></div>
+    <div class="dash-card"><div class="dash-card-val">${training}</div><div class="dash-card-lbl">교육</div></div>
+    <div class="dash-card ${supportCount?'alert':''}"><div class="dash-card-val">${supportCount}</div><div class="dash-card-lbl">🔴 지원 필요</div></div>
+    <div class="dash-card"><div class="dash-card-val">${inProgress}</div><div class="dash-card-lbl">진행중 업무</div></div>
   `;
 
-  // Workload table
-  const workloadBody = document.getElementById('workload-body');
-  let wHtml = '';
-  state.members.forEach(member => {
-    const schedule = state.schedules.find(s => s.memberId === member.id && s.date === today);
-    const status = schedule ? schedule.status : '출근';
-    const wl = getWorkload(member.id);
-    const wlClass = wl.needSupport ? 'workload-alert' : 'workload-normal';
-    const wlText = wl.needSupport ? '🔴 지원 필요' : '🟢 정상';
-    wHtml += `<tr>
-      <td><span class="member-color-dot" style="background:${member.color}"></span> ${member.name}</td>
-      <td><span class="status-tag" style="background:${STATUS_COLORS[status]}">${status}</span></td>
-      <td>${wl.scheduleCount}</td>
-      <td>${wl.incompleteTodos}</td>
-      <td class="${wlClass}">${wlText}</td>
-    </tr>`;
+  // Member table
+  let tHtml = '';
+  members.forEach(m => {
+    const sch = getSch(m.id, today);
+    const status = sch ? sch.status : '출근';
+    const sColor = STATUS_COLOR[status] || '#16a34a';
+    const wl = getWorkload(m.id);
+    const wlTxt = wl.needSupport ? '<span style="color:#dc2626;font-weight:600">🔴 지원 필요</span>' : '<span style="color:#16a34a">🟢 정상</span>';
+    tHtml += `<tr><td><span class="sch-dot" style="background:${m.color};display:inline-block;vertical-align:middle;margin-right:5px"></span>${m.name}</td><td>${m.position}</td><td><span class="badge" style="background:${sColor}">${status}</span></td><td>${wl.incomplete}</td><td>${wlTxt}</td></tr>`;
   });
-  workloadBody.innerHTML = wHtml;
+  document.getElementById('dash-member-body').innerHTML = tHtml;
 
-  // Summary
-  const summaryEl = document.getElementById('summary-list');
-  summaryEl.innerHTML = `
-    <div class="summary-item"><span class="summary-icon">👥</span> 전체 ${totalMembers}명 중 ${totalMembers - vacationCount - tripCount}명 근무중</div>
-    <div class="summary-item"><span class="summary-icon">✈️</span> 출장 ${tripCount}명</div>
-    <div class="summary-item"><span class="summary-icon">🏖️</span> 휴가 ${vacationCount}명</div>
-    <div class="summary-item"><span class="summary-icon">🏠</span> 재택 ${remoteCount}명</div>
-    <div class="summary-item"><span class="summary-icon">📋</span> 진행중 To Do ${inProgressTodos}건</div>
-    ${needSupportCount > 0 ? `<div class="summary-item"><span class="summary-icon">⚠️</span> 지원 필요 ${needSupportCount}명</div>` : ''}
-  `;
+  // Support list
+  const supportMembers = members.filter(m => getWorkload(m.id).needSupport);
+  const supportEl = document.getElementById('dash-support-list');
+  if (supportMembers.length === 0) {
+    supportEl.innerHTML = '<p style="color:var(--gray-400);font-size:13px;padding:10px;">현재 지원 필요 인원이 없습니다 ✅</p>';
+  } else {
+    supportEl.innerHTML = supportMembers.map(m => {
+      const wl = getWorkload(m.id);
+      return `<div class="support-item">🔴 <strong>${m.name}</strong> (${m.position}) - 미완료 ${wl.incomplete}건</div>`;
+    }).join('');
+  }
 }
 
 
-// ============================================================
-// Rendering - To Do
-// ============================================================
+// === Render: Todo ===
 function renderTodos() {
-  const list = document.getElementById('todo-list');
-  let filtered = [...state.todos];
+  let list = [...todos];
 
-  if (state.todoFilter === 'inprogress') filtered = filtered.filter(t => !t.done);
-  else if (state.todoFilter === 'done') filtered = filtered.filter(t => t.done);
+  // Member filter
+  if (todoMemberFilter !== 'all') list = list.filter(t => t.assigneeId === todoMemberFilter);
 
-  // Sort: incomplete first, then by priority
-  const priorityOrder = { high: 0, medium: 1, low: 2 };
-  filtered.sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
-  });
+  // Status filter
+  if (todoFilter === 'inprogress') list = list.filter(t => !t.done);
+  else if (todoFilter === 'done') list = list.filter(t => t.done);
+  else if (todoFilter === 'support') list = list.filter(t => !t.done && t.needSupport);
 
-  if (filtered.length === 0) {
-    list.innerHTML = '<p style="text-align:center;color:var(--color-text-secondary);padding:24px;">등록된 할 일이 없습니다.</p>';
+  // Sort
+  const pOrd = { high: 0, medium: 1, low: 2 };
+  list.sort((a, b) => (a.done - b.done) || (pOrd[a.priority]||1) - (pOrd[b.priority]||1));
+
+  const el = document.getElementById('todo-list');
+  if (list.length === 0) {
+    el.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">항목이 없습니다.</p>';
   } else {
-    let html = '';
-    filtered.forEach(todo => {
-      const assignee = state.members.find(m => m.id === todo.assigneeId);
-      const assigneeName = assignee ? assignee.name : '-';
-      const dueStr = todo.dueDate ? `마감: ${todo.dueDate}` : '';
-      const priorityLabel = { high: '높음', medium: '보통', low: '낮음' }[todo.priority] || '보통';
-
-      html += `
-        <div class="todo-item ${todo.done ? 'done' : ''}">
-          <input type="checkbox" class="todo-check" data-id="${todo.id}" ${todo.done ? 'checked' : ''}>
-          <div class="todo-content">
-            <div class="todo-title">${todo.title}</div>
+    el.innerHTML = list.map(t => {
+      const m = members.find(x => x.id === t.assigneeId);
+      const name = m ? m.name : '미지정';
+      const pLabel = { high:'높음', medium:'보통', low:'낮음' }[t.priority]||'보통';
+      const pCls = { high:'p-high', medium:'p-medium', low:'p-low' }[t.priority]||'p-medium';
+      const supportCls = (!t.done && t.needSupport) ? 'support-flag' : '';
+      return `
+        <div class="todo-item ${t.done?'done':''} ${supportCls}">
+          <input type="checkbox" class="todo-chk" data-id="${t.id}" ${t.done?'checked':''}>
+          <div class="todo-body">
+            <div class="todo-title">${t.needSupport&&!t.done?'🔴 ':''}${t.title}</div>
             <div class="todo-meta">
-              <span>👤 ${assigneeName}</span>
-              <span class="todo-priority priority-${todo.priority}">${priorityLabel}</span>
-              ${dueStr ? `<span>📅 ${dueStr}</span>` : ''}
+              <span>👤 ${name}</span>
+              <span class="todo-priority ${pCls}">${pLabel}</span>
+              ${t.dueDate?`<span>📅 ${t.dueDate}</span>`:''}
+              ${t.needSupport&&!t.done?'<span style="color:#dc2626;font-weight:600">지원필요</span>':''}
             </div>
           </div>
-          <button class="todo-delete" data-id="${todo.id}" title="삭제">🗑️</button>
-        </div>
-      `;
-    });
-    list.innerHTML = html;
+          <button class="todo-del" data-id="${t.id}">🗑️</button>
+        </div>`;
+    }).join('');
   }
 
   // Progress
-  const total = state.todos.length;
-  const done = state.todos.filter(t => t.done).length;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  document.getElementById('todo-progress-fill').style.width = pct + '%';
-  document.getElementById('todo-progress-percent').textContent = pct + '%';
+  const total = todos.length;
+  const done = todos.filter(t => t.done).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('todo-progress').style.width = pct + '%';
+  document.getElementById('todo-pct').textContent = pct + '%';
+
+  // Member filter dropdown
+  const sel = document.getElementById('todo-member-filter');
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="all">전체 팀원</option>' + members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  sel.value = curVal || 'all';
 }
 
-// ============================================================
-// Rendering - Members
-// ============================================================
+// === Render: Notice ===
+function renderNotices() {
+  const el = document.getElementById('notice-list');
+  if (notices.length === 0) {
+    el.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">등록된 공지사항이 없습니다.</p>';
+  } else {
+    el.innerHTML = notices.map(n => {
+      const d = new Date(n.date);
+      const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return `
+        <div class="notice-card">
+          <h4>${n.title}</h4>
+          <p>${n.content || ''}</p>
+          <div class="notice-date">${dateStr}</div>
+          <button class="notice-del" data-id="${n.id}">🗑️</button>
+        </div>`;
+    }).join('');
+  }
+}
+
+// === Render: Members ===
 function renderMembers() {
-  const tbody = document.getElementById('member-list-body');
-  document.getElementById('member-count').textContent = state.members.length;
-
-  let html = '';
-  state.members.forEach(member => {
-    const wl = getWorkload(member.id);
-    const wlClass = wl.needSupport ? 'workload-alert' : 'workload-normal';
-    const wlText = wl.needSupport ? '🔴 지원 필요' : '🟢 정상';
-    html += `<tr>
-      <td><span class="member-color-dot" style="background:${member.color}"></span></td>
-      <td>${member.name}</td>
-      <td>${member.department}</td>
-      <td class="${wlClass}">${wlText}</td>
-      <td><button class="btn-danger btn-sm" data-delete-member="${member.id}">삭제</button></td>
-    </tr>`;
-  });
-  tbody.innerHTML = html;
+  document.getElementById('member-count').textContent = members.length;
+  const tbody = document.getElementById('member-tbody');
+  tbody.innerHTML = members.map(m => `
+    <tr>
+      <td><span class="color-dot" style="background:${m.color}"></span></td>
+      <td>${m.name}</td>
+      <td>${m.position}</td>
+      <td>${m.empNo || '-'}</td>
+      <td>${m.email || '-'}</td>
+      <td>
+        <button class="btn-outline btn-sm" data-edit-member="${m.id}">수정</button>
+        <button class="btn-danger btn-sm" data-del-member="${m.id}">삭제</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
-// ============================================================
-// Render All
-// ============================================================
+// === Render All ===
 function renderAll() {
-  renderAttendanceBar();
   renderCalendar();
   renderDashboard();
   renderTodos();
+  renderNotices();
   renderMembers();
 }
 
-// ============================================================
-// View Switching
-// ============================================================
+
+// === View Switching ===
 function switchView(view) {
-  state.currentView = view;
-
-  // Update sidebar
-  document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.view === view);
-  });
-
-  // Show/hide panels
-  document.querySelectorAll('.view-panel').forEach(panel => {
-    panel.hidden = panel.id !== `view-${view}`;
-  });
-
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
   // Re-render active view
   if (view === 'calendar') renderCalendar();
   else if (view === 'dashboard') renderDashboard();
   else if (view === 'todo') renderTodos();
+  else if (view === 'notice') renderNotices();
   else if (view === 'members') renderMembers();
 }
 
-// ============================================================
-// Status Modal
-// ============================================================
+// === Status Modal ===
 function openStatusModal(memberId, dateStr) {
-  const modal = document.getElementById('modal-status');
-  const existing = getSchedule(memberId, dateStr);
-  const member = state.members.find(m => m.id === memberId);
-  const deleteBtn = document.getElementById('btn-delete-status');
+  const m = members.find(x => x.id === memberId);
+  const existing = getSch(memberId, dateStr);
+  statusCtx = { memberId, date: dateStr, selected: existing ? existing.status : null };
 
-  state.statusModal = { memberId, date: dateStr, selectedStatus: existing ? existing.status : null };
-
-  document.getElementById('status-modal-title').textContent = `${member ? member.name : ''} - ${dateStr}`;
-  document.getElementById('status-note').value = existing ? existing.note : '';
-  deleteBtn.hidden = !existing;
-
-  // Highlight active status
-  document.querySelectorAll('.status-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.status === (existing ? existing.status : ''));
-  });
-
-  modal.hidden = false;
+  document.getElementById('status-title').textContent = `${m?m.name:''} - ${dateStr}`;
+  document.getElementById('status-note').value = existing ? existing.note||'' : '';
+  document.getElementById('btn-status-clear').hidden = !existing;
+  document.querySelectorAll('.status-opt').forEach(b => b.classList.toggle('active', b.dataset.status === statusCtx.selected));
+  document.getElementById('modal-status').hidden = false;
 }
 
-function closeStatusModal() {
-  document.getElementById('modal-status').hidden = true;
-  state.statusModal = { memberId: null, date: null, selectedStatus: null };
-}
+function closeStatusModal() { document.getElementById('modal-status').hidden = true; }
 
-function saveStatus() {
-  const { memberId, date, selectedStatus } = state.statusModal;
-  if (!selectedStatus) { alert('상태를 선택해주세요.'); return; }
+function saveStatusModal() {
+  if (!statusCtx.selected) { alert('상태를 선택해주세요.'); return; }
   const note = document.getElementById('status-note').value.trim();
-  setSchedule(memberId, date, selectedStatus, note);
-  closeStatusModal();
-  renderAll();
+  setSch(statusCtx.memberId, statusCtx.date, statusCtx.selected, note);
+  closeStatusModal(); renderAll();
 }
 
-function deleteStatus() {
-  const { memberId, date } = state.statusModal;
-  setSchedule(memberId, date, null, '');
-  closeStatusModal();
-  renderAll();
+function clearStatus() {
+  setSch(statusCtx.memberId, statusCtx.date, null, '');
+  closeStatusModal(); renderAll();
 }
 
-// ============================================================
-// Todo Modal
-// ============================================================
+// === Todo Modal ===
 function openTodoModal() {
-  const modal = document.getElementById('modal-todo');
-  const select = document.getElementById('todo-assignee');
-
-  // Populate assignee dropdown
-  let optHtml = '<option value="">-- 선택 --</option>';
-  state.members.forEach(m => { optHtml += `<option value="${m.id}">${m.name}</option>`; });
-  select.innerHTML = optHtml;
-
-  // Reset form
+  const sel = document.getElementById('todo-assignee');
+  sel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
   document.getElementById('todo-title').value = '';
   document.getElementById('todo-priority').value = 'medium';
   document.getElementById('todo-due').value = '';
+  document.getElementById('todo-support').checked = false;
   document.getElementById('todo-desc').value = '';
-
-  modal.hidden = false;
+  document.getElementById('modal-todo').hidden = false;
 }
-
-function closeTodoModal() {
-  document.getElementById('modal-todo').hidden = true;
-}
-
-function saveTodo() {
+function closeTodoModal() { document.getElementById('modal-todo').hidden = true; }
+function saveTodoModal() {
   const title = document.getElementById('todo-title').value.trim();
   if (!title) { alert('제목을 입력해주세요.'); return; }
   const assigneeId = document.getElementById('todo-assignee').value;
+  if (!assigneeId) { alert('담당자를 선택해주세요.'); return; }
   const priority = document.getElementById('todo-priority').value;
   const dueDate = document.getElementById('todo-due').value;
+  const needSupport = document.getElementById('todo-support').checked;
   const desc = document.getElementById('todo-desc').value.trim();
-  addTodo(title, assigneeId, priority, dueDate, desc);
-  closeTodoModal();
-  renderTodos();
-  renderDashboard();
-  renderAttendanceBar();
+  addTodo(title, assigneeId, priority, dueDate, needSupport, desc);
+  closeTodoModal(); renderTodos(); renderDashboard();
 }
 
+// === Notice Modal ===
+function openNoticeModal() {
+  document.getElementById('notice-title').value = '';
+  document.getElementById('notice-content').value = '';
+  document.getElementById('modal-notice').hidden = false;
+}
+function closeNoticeModal() { document.getElementById('modal-notice').hidden = true; }
+function saveNoticeModal() {
+  const title = document.getElementById('notice-title').value.trim();
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  const content = document.getElementById('notice-content').value.trim();
+  addNotice(title, content);
+  closeNoticeModal(); renderNotices();
+}
 
-// ============================================================
-// Event Bindings
-// ============================================================
-function bindEvents() {
-  // Sidebar navigation
-  document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-    item.addEventListener('click', () => {
+// === Member Edit ===
+function startEditMember(id) {
+  const m = members.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('edit-member-id').value = m.id;
+  document.getElementById('m-name').value = m.name;
+  document.getElementById('m-position').value = m.position;
+  document.getElementById('m-empno').value = m.empNo || '';
+  document.getElementById('m-email').value = m.email || '';
+  document.getElementById('m-color').value = m.color;
+  document.getElementById('member-form-title').textContent = '팀원 수정';
+  document.getElementById('btn-member-submit').textContent = '저장';
+  document.getElementById('btn-member-cancel').hidden = false;
+}
+
+function cancelEditMember() {
+  document.getElementById('edit-member-id').value = '';
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-position').value = '선임연구원';
+  document.getElementById('m-empno').value = '';
+  document.getElementById('m-email').value = '';
+  document.getElementById('m-color').value = '#4A90D9';
+  document.getElementById('member-form-title').textContent = '팀원 추가';
+  document.getElementById('btn-member-submit').textContent = '추가';
+  document.getElementById('btn-member-cancel').hidden = true;
+}
+
+// === Event Bindings ===
+function bind() {
+  // Sidebar nav
+  document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
       switchView(item.dataset.view);
-      // Close mobile sidebar
       document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebar-overlay').classList.remove('open');
+      document.getElementById('overlay').classList.remove('open');
     });
   });
 
-  // Mobile hamburger
-  document.getElementById('btn-hamburger').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('sidebar-overlay').classList.toggle('open');
+  // Mobile menu
+  document.getElementById('btn-menu').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('overlay').classList.add('open');
   });
-
-  // Mobile overlay close
-  document.getElementById('sidebar-overlay').addEventListener('click', () => {
+  document.getElementById('overlay').addEventListener('click', () => {
     document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebar-overlay').classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
   });
 
-  // Week navigation
-  document.getElementById('btn-prev-week').addEventListener('click', () => {
-    state.currentDate.setDate(state.currentDate.getDate() - 7);
-    renderCalendar();
-    renderAttendanceBar();
-  });
+  // Print
+  document.getElementById('btn-print').addEventListener('click', () => window.print());
 
-  document.getElementById('btn-next-week').addEventListener('click', () => {
-    state.currentDate.setDate(state.currentDate.getDate() + 7);
-    renderCalendar();
-    renderAttendanceBar();
-  });
+  // Calendar navigation
+  document.getElementById('btn-prev').addEventListener('click', () => { currentDate.setDate(currentDate.getDate()-7); renderCalendar(); });
+  document.getElementById('btn-next').addEventListener('click', () => { currentDate.setDate(currentDate.getDate()+7); renderCalendar(); });
+  document.getElementById('btn-today-nav').addEventListener('click', () => { currentDate = new Date(); renderCalendar(); });
 
-  document.getElementById('btn-today').addEventListener('click', () => {
-    state.currentDate = new Date();
-    renderCalendar();
-    renderAttendanceBar();
-  });
-
-  // Calendar cell clicks (event delegation)
-  document.getElementById('calendar-body').addEventListener('click', (e) => {
-    const td = e.target.closest('td[data-member]');
-    if (td) {
-      openStatusModal(td.dataset.member, td.dataset.date);
-    }
+  // Calendar cell click
+  document.getElementById('schedule-body').addEventListener('click', (e) => {
+    const td = e.target.closest('td[data-mid]');
+    if (td) openStatusModal(td.dataset.mid, td.dataset.date);
   });
 
   // Status modal
-  document.getElementById('btn-close-status').addEventListener('click', closeStatusModal);
-  document.getElementById('btn-save-status').addEventListener('click', saveStatus);
-  document.getElementById('btn-delete-status').addEventListener('click', deleteStatus);
-
-  document.querySelectorAll('.status-btn').forEach(btn => {
+  document.getElementById('close-status').addEventListener('click', closeStatusModal);
+  document.getElementById('btn-status-save').addEventListener('click', saveStatusModal);
+  document.getElementById('btn-status-clear').addEventListener('click', clearStatus);
+  document.getElementById('modal-status').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeStatusModal(); });
+  document.querySelectorAll('.status-opt').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.statusModal.selectedStatus = btn.dataset.status;
-      document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+      statusCtx.selected = btn.dataset.status;
+      document.querySelectorAll('.status-opt').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });
   });
 
-  // Close status modal on overlay click
-  document.getElementById('modal-status').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeStatusModal();
-  });
-
-  // Todo modal
+  // Todo
   document.getElementById('btn-add-todo').addEventListener('click', openTodoModal);
-  document.getElementById('btn-close-todo').addEventListener('click', closeTodoModal);
-  document.getElementById('btn-cancel-todo').addEventListener('click', closeTodoModal);
-  document.getElementById('btn-save-todo').addEventListener('click', saveTodo);
+  document.getElementById('close-todo').addEventListener('click', closeTodoModal);
+  document.getElementById('btn-todo-cancel').addEventListener('click', closeTodoModal);
+  document.getElementById('btn-todo-save').addEventListener('click', saveTodoModal);
+  document.getElementById('modal-todo').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTodoModal(); });
 
-  document.getElementById('modal-todo').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeTodoModal();
+  document.getElementById('todo-list').addEventListener('click', (e) => {
+    const chk = e.target.closest('.todo-chk');
+    if (chk) { toggleTodo(chk.dataset.id); renderTodos(); renderDashboard(); return; }
+    const del = e.target.closest('.todo-del');
+    if (del && confirm('삭제할까요?')) { delTodo(del.dataset.id); renderTodos(); renderDashboard(); }
   });
 
   // Todo filters
-  document.getElementById('todo-filters').addEventListener('click', (e) => {
-    const btn = e.target.closest('.filter-btn');
+  document.querySelector('.todo-filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-chip');
     if (btn) {
-      state.todoFilter = btn.dataset.filter;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      todoFilter = btn.dataset.filter;
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderTodos();
     }
   });
 
-  // Todo list clicks (check/delete via delegation)
-  document.getElementById('todo-list').addEventListener('click', (e) => {
-    const check = e.target.closest('.todo-check');
-    if (check) {
-      toggleTodo(check.dataset.id);
-      renderTodos();
-      renderDashboard();
-      renderAttendanceBar();
-      return;
-    }
-    const del = e.target.closest('.todo-delete');
-    if (del) {
-      if (confirm('이 할 일을 삭제하시겠습니까?')) {
-        deleteTodo(del.dataset.id);
-        renderTodos();
-        renderDashboard();
-        renderAttendanceBar();
-      }
-    }
+  document.getElementById('todo-member-filter').addEventListener('change', (e) => {
+    todoMemberFilter = e.target.value;
+    renderTodos();
+  });
+
+  // Notice
+  document.getElementById('btn-add-notice').addEventListener('click', openNoticeModal);
+  document.getElementById('close-notice').addEventListener('click', closeNoticeModal);
+  document.getElementById('btn-notice-cancel').addEventListener('click', closeNoticeModal);
+  document.getElementById('btn-notice-save').addEventListener('click', saveNoticeModal);
+  document.getElementById('modal-notice').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeNoticeModal(); });
+  document.getElementById('notice-list').addEventListener('click', (e) => {
+    const del = e.target.closest('.notice-del');
+    if (del && confirm('삭제할까요?')) { delNotice(del.dataset.id); renderNotices(); }
   });
 
   // Member form
-  document.getElementById('form-add-member').addEventListener('submit', (e) => {
+  document.getElementById('form-member').addEventListener('submit', (e) => {
     e.preventDefault();
-    const name = document.getElementById('input-member-name').value.trim();
-    const dept = document.getElementById('input-member-dept').value.trim();
-    const color = document.getElementById('input-member-color').value;
+    const editId = document.getElementById('edit-member-id').value;
+    const name = document.getElementById('m-name').value.trim();
+    const position = document.getElementById('m-position').value;
+    const empNo = document.getElementById('m-empno').value.trim();
+    const email = document.getElementById('m-email').value.trim();
+    const color = document.getElementById('m-color').value;
     if (!name) { alert('이름을 입력해주세요.'); return; }
-    addMember(name, color, dept);
-    document.getElementById('input-member-name').value = '';
-    document.getElementById('input-member-dept').value = '';
+
+    if (editId) {
+      updateMember(editId, { name, position, empNo, email, color });
+      cancelEditMember();
+    } else {
+      addMember(name, position, empNo, email, color);
+    }
     renderAll();
   });
 
-  // Member delete (delegation)
-  document.getElementById('member-list-body').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-delete-member]');
-    if (btn) {
-      if (confirm('이 팀원을 삭제하시겠습니까? 관련 일정/할 일도 함께 삭제됩니다.')) {
-        removeMember(btn.dataset.deleteMember);
-        renderAll();
-      }
-    }
-  });
+  document.getElementById('btn-member-cancel').addEventListener('click', cancelEditMember);
 
-  // Export / Import
-  document.getElementById('btn-export').addEventListener('click', exportData);
-  document.getElementById('btn-import').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) { importData(file); e.target.value = ''; }
+  // Member table delegation (edit/delete)
+  document.getElementById('member-tbody').addEventListener('click', (e) => {
+    const editBtn = e.target.closest('[data-edit-member]');
+    if (editBtn) { startEditMember(editBtn.dataset.editMember); return; }
+    const delBtn = e.target.closest('[data-del-member]');
+    if (delBtn) { deleteMember(delBtn.dataset.delMember); }
   });
 }
 
-// ============================================================
-// Initialization
-// ============================================================
+// === Init ===
 document.addEventListener('DOMContentLoaded', () => {
-  loadData();
-  bindEvents();
+  load();
+  bind();
   renderAll();
 });
