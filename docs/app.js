@@ -142,6 +142,51 @@ function stat(mid) {
            need: sup || open.length >= 5 };
 }
 
+/** 다음 근무일(주말 건너뜀) */
+function nextWorkday(d) {
+  const x = new Date(d);
+  do { x.setDate(x.getDate() + 1); } while (x.getDay() === 0 || x.getDay() === 6);
+  return x;
+}
+
+/**
+ * 임박한 부재(휴가/출장/교육) 찾기 - 대시보드 "비고"용
+ * 연속 일수는 주말을 건너뛰고 이어지는 것으로 계산한다.
+ * @returns {null | {status, days, dLeft}}
+ */
+function nextAbsence(mid) {
+  const td = today();
+  const mine = schedules
+    .filter(s => s.memberId === mid && s.date >= td && s.status !== '기타')
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!mine.length) return null;
+
+  const first = mine[0];
+  const byDate = {};
+  mine.forEach(s => { byDate[s.date] = s.status; });
+
+  let days = 1;
+  let cur = new Date(first.date + 'T00:00:00');
+  for (;;) {
+    const nx = nextWorkday(cur);
+    if (byDate[fmt(nx)] === first.status) { days++; cur = nx; }
+    else break;
+  }
+  return { status: first.status, days, dLeft: daysLeft(first.date) };
+}
+
+/** 비고 라벨 (휴가 D-n / 장기휴가 D-n 등) */
+function remarkOf(mid) {
+  const a = nextAbsence(mid);
+  if (!a) return '<span class="rm rm-none">-</span>';
+  const long = a.days >= 4;
+  const name = (long ? '장기' : '') + a.status;
+  if (a.dLeft === 0) return `<span class="rm rm-now">${name} 중${long ? ` (${a.days}일)` : ''}</span>`;
+  const label = `${name} D-${a.dLeft}` + (long ? ` (${a.days}일)` : '');
+  const cls = long ? 'rm-long' : (a.dLeft <= 7 ? 'rm-soon' : 'rm-far');
+  return `<span class="rm ${cls}">${label}</span>`;
+}
+
 
 // ===== Render: 월간 근태 =====
 function monthGrid(base) {
@@ -243,83 +288,97 @@ function renderDayBody(ds) {
   }).join('') || '<div class="none-txt">팀원이 없습니다</div>';
 }
 
-// ===== Render: Calendar =====
-function renderCalendar() {
-  const dates = weekOf(curDate), td = today(), names = ['월','화','수','목','금'];
-  const ws = fmt(dates[0]), we = fmt(dates[4]);
+// ===== Render: 주간 스케줄 (요일 칸 = 업무 공간) =====
+const ATT_CLS = { '출장': 'att-trip', '휴가': 'att-vac', '교육': 'att-edu', '기타': 'att-etc' };
+const MAX_PER_CELL = 3;
 
-  $('week-label').textContent = `${dates[0].getFullYear()}.${dates[0].getMonth()+1}.${dates[0].getDate()} ~ ${dates[4].getMonth()+1}.${dates[4].getDate()}`;
+/** 현재 필터에 맞는지 */
+function passFilter(t) {
+  if (tFilter === 'inprogress') return !t.done;
+  if (tFilter === 'done') return t.done;
+  if (tFilter === 'support') return !t.done && t.needSupport;
+  if (tFilter === 'duesoon') {
+    if (t.done) return false;
+    const d = daysLeft(t.dueDate);
+    return d !== null && d <= 2;
+  }
+  return true;
+}
+
+function renderCalendar() {
+  const dates = weekOf(curDate), td = today(), names = ['월', '화', '수', '목', '금'];
+
+  $('week-label').textContent =
+    `${dates[0].getFullYear()}.${dates[0].getMonth() + 1}.${dates[0].getDate()} ~ ${dates[4].getMonth() + 1}.${dates[4].getDate()}`;
 
   const ths = document.querySelectorAll('.wk-table thead th');
   for (let i = 1; i <= 5; i++) {
-    const d = dates[i-1];
-    ths[i].innerHTML = `${names[i-1]}<br><small style="font-weight:500;opacity:.85">${d.getMonth()+1}/${d.getDate()}</small>`;
+    const d = dates[i - 1];
+    ths[i].innerHTML = `${names[i - 1]}<br><small style="font-weight:500;opacity:.85">${d.getMonth() + 1}/${d.getDate()}</small>`;
     ths[i].classList.toggle('today', fmt(d) === td);
   }
 
+  const po = { high: 0, medium: 1, low: 2 };
   let html = '';
+
   members.forEach(m => {
-    html += '<tr>';
+    const wl = stat(m.id);
+    html += `<tr class="${wl.need ? 'sos' : ''}">`;
+
     // 팀원
+    const undated = todos.filter(t => t.assigneeId === m.id && !t.dueDate && !t.done).length;
     html += `<td class="w-mem"><div class="wk-mem"><span class="mdot" style="background:${m.color}"></span>`
           + `<span class="wk-mem-n">${esc(m.name)}</span></div>`
-          + `<span class="wk-mem-p">${esc(m.position)}</span></td>`;
-    // 근태 5칸
+          + `<span class="wk-mem-p">${esc(m.position)}</span>`
+          + (wl.need ? '<span class="sos-tag"><span class="dotb"></span>지원 필요</span>' : '')
+          + (undated ? `<span class="wk-undated" data-tasks="${m.id}|open" title="마감일이 지정되지 않은 업무">📋 미지정 ${undated}</span>` : '')
+          + '</td>';
+
+    // 요일 칸 (근태 최소 표시 + 업무)
     dates.forEach(d => {
-      const ds = fmt(d), s = getSch(m.id, ds);
-      if (s) {
-        html += `<td class="w-att" data-mid="${m.id}" data-date="${ds}" title="${esc(s.note || s.status)}">`
-              + `<span class="badge ${S_CLASS[s.status] || 'b-etc'}">${s.status}</span>`
-              + (s.note ? '<span class="note-ico">📝</span>' : '') + '</td>';
-      } else {
-        html += `<td class="w-att" data-mid="${m.id}" data-date="${ds}" title="출근 (입력값 없음)"><span class="work-dot"></span></td>`;
-      }
-    });
+      const ds = fmt(d);
+      const s = getSch(m.id, ds);
+      const isToday = ds === td;
 
-    // 할 일 (필터 적용)
-    const mine = todos.filter(t => t.assigneeId === m.id).filter(t => {
-      if (tFilter === 'inprogress') return !t.done;
-      if (tFilter === 'done') return t.done;
-      if (tFilter === 'support') return !t.done && t.needSupport;
-      if (tFilter === 'duesoon') { if (t.done) return false; const dl = daysLeft(t.dueDate); return dl !== null && dl <= 2; }
-      return true;
-    });
-    const po = { high: 0, medium: 1, low: 2 };
-    mine.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1)
-      || (a.dueDate || 'zzz').localeCompare(b.dueDate || 'zzz'));
+      const att = s
+        ? `<button class="att-mini ${ATT_CLS[s.status] || 'att-etc'}" data-att="${m.id}|${ds}" title="${esc(s.status + (s.note ? ' · ' + s.note : ''))} (클릭하여 변경)">${s.status}${s.note ? '*' : ''}</button>`
+        : `<button class="att-mini att-work" data-att="${m.id}|${ds}" title="출근 (클릭하여 근태 입력)">출근</button>`;
 
-    let tHtml = '<div class="wt-list">';
-    if (mine.length) {
-      mine.forEach(t => {
+      const all = todos.filter(t => t.assigneeId === m.id && t.dueDate === ds).filter(passFilter);
+      all.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
+      const shown = all.slice(0, MAX_PER_CELL);
+
+      let list = '';
+      shown.forEach(t => {
         const dl = daysLeft(t.dueDate);
         const soon = !t.done && dl !== null && dl <= 2;
-        let flags = '';
-        if (!t.done && t.needSupport) flags += '<span class="wt-f sup">지원</span>';
-        if (soon) flags += `<span class="wt-f due">${dl < 0 ? `${-dl}일↑` : dl === 0 ? '오늘' : `D-${dl}`}</span>`;
-        else if (!t.done && t.priority === 'high') flags += '<span class="wt-f hi">높음</span>';
-        const tip = `${t.title}${t.dueDate ? ` (마감 ${t.dueDate})` : ''}${t.description ? '\n' + t.description : ''}`;
-        tHtml += `<div class="wt ${t.done ? 'done' : ''}">`
-              + `<input type="checkbox" class="wt-c" data-chk="${t.id}" ${t.done ? 'checked' : ''} title="완료 처리">`
-              + `<span class="wt-t" data-open-task="${t.id}" title="${esc(tip)}">${esc(t.title)}</span>`
-              + flags + '</div>';
+        const cls = t.done ? 'done' : (t.needSupport ? 'sup' : (soon ? 'due' : (t.priority === 'high' ? 'hi' : '')));
+        const tip = `${t.title}${t.description ? '\n' + t.description : ''}`;
+        list += `<div class="dt ${cls}">`
+              + `<input type="checkbox" class="dt-c" data-chk="${t.id}" ${t.done ? 'checked' : ''} title="완료 처리">`
+              + `<span class="dt-t" data-open-task="${t.id}" title="${esc(tip)}">${esc(t.title)}</span></div>`;
       });
-    } else {
-      tHtml += '<span class="wt-none">할 일 없음</span>';
-    }
-    tHtml += `<button class="wt-add" data-add-todo="${m.id}">+ 추가</button></div>`;
-    html += `<td class="w-tdo" data-add-todo="${m.id}" title="빈 곳 클릭 = 할 일 추가">${tHtml}</td>`;
+      if (all.length > MAX_PER_CELL) {
+        list += `<span class="dc-more" data-day-tasks="${m.id}|${ds}">+${all.length - MAX_PER_CELL}건 더보기</span>`;
+      }
+
+      html += `<td class="w-cell ${isToday ? 'tday-col' : ''}" data-add="${m.id}|${ds}" title="빈 곳 클릭 = 이 날짜로 업무 추가">`
+            + `<div class="dc"><div class="dc-h">${att}<button class="dc-add" data-add="${m.id}|${ds}" title="업무 추가">+</button></div>`
+            + `<div class="dc-list">${list}</div></div></td>`;
+    });
 
     // 진행률
     const all = todos.filter(t => t.assigneeId === m.id);
     const dn = all.filter(t => t.done).length;
     const pc = all.length ? Math.round(dn / all.length * 100) : 0;
-    const wl = stat(m.id);
     html += `<td><div class="wk-pg ${wl.need ? 'alert' : ''}">`
           + `<div class="wk-pg-bar"><i style="width:${pc}%"></i></div>`
-          + `<span class="wk-pg-t">${wl.need ? '🔴 ' : ''}${dn}/${all.length} · ${pc}%</span></div></td>`;
+          + `<span class="wk-pg-t">${dn}/${all.length} · ${pc}%</span></div></td>`;
     html += '</tr>';
   });
-  $('sch-body').innerHTML = html || '<tr><td colspan="8" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
+
+  $('sch-body').innerHTML = html
+    || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
 
   // 파트 전체 진행률
   const tot = todos.length, dnAll = todos.filter(t => t.done).length;
@@ -328,6 +387,7 @@ function renderCalendar() {
   $('todo-pct').textContent = pctAll + '%';
   $('todo-cnt').textContent = tot ? `(완료 ${dnAll} / 전체 ${tot}건)` : '(등록된 할 일 없음)';
 }
+
 
 // ===== Render: Dashboard =====
 function renderDashboard() {
@@ -374,13 +434,22 @@ function renderDashboard() {
     const cls = s ? (S_CLASS[st] || 'b-etc') : 'b-work';
     const k = stat(m.id);
     const mine = todos.filter(t => t.assigneeId === m.id);
-    return `<tr>
+    const open = mine.filter(t => !t.done);
+    const sup = open.filter(t => t.needSupport);
+    // 메인 업무 = 진행중 업무 중 우선순위 최상위
+    const po = { high: 0, medium: 1, low: 2 };
+    const main = open.slice().sort((a, b) => (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
+    return `<tr class="${k.need ? 'sos' : ''}">
       <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
       <td>${esc(m.position)}</td>
       <td><span class="badge ${cls}">${st}</span></td>
-      ${previewCell(m.id, 'open', mine.filter(t => !t.done))}
-      ${previewCell(m.id, 'done', mine.filter(t => t.done))}
-      <td>${k.need ? '<b style="color:#dc2626">🔴 지원 필요</b>' : '<span style="color:#16a34a">🟢 정상</span>'}</td>
+      ${previewCell(m.id, 'open', main)}
+      ${sup.length
+        ? `<td class="cell-preview" data-tasks="${m.id}|support" title="${esc(sup.map(t => '· ' + t.title).join('\n'))}\n\n(클릭하여 상세 보기)">
+             <span class="sos-tag"><span class="dotb"></span>지원 필요</span>
+             <span class="sos-cnt"> ${sup.length}건</span></td>`
+        : '<td><span class="cp-none">-</span></td>'}
+      <td>${remarkOf(m.id)}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="6" class="none-txt">팀원이 없습니다</td></tr>';
 
@@ -642,7 +711,7 @@ function openStatus(mid, date) {
 }
 
 // ===== Todo modal =====
-function openTodo(presetMid, editId) {
+function openTodo(presetMid, editId, presetDate) {
   const sel = $('td-assignee');
   sel.innerHTML = members.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
   $('todo-edit-id').value = editId || '';
@@ -659,17 +728,31 @@ function openTodo(presetMid, editId) {
     $('td-support').checked = !!t.needSupport;
     $('td-desc').value = t.description || '';
   } else {
-    $('todo-modal-title').textContent = '할 일 추가';
+    $('todo-modal-title').textContent = presetDate ? `할 일 추가 · ${presetDate}` : '할 일 추가';
     $('td-title').value = '';
     if (presetMid) sel.value = presetMid;
     $('td-priority').value = 'medium';
     $('td-start').value = '';
-    $('td-due').value = '';
+    $('td-due').value = presetDate || '';   // 클릭한 날짜를 마감일로 미리 채움
     $('td-support').checked = false;
     $('td-desc').value = '';
   }
   openModal('modal-todo');
   setTimeout(() => $('td-title').focus(), 50);
+}
+
+/** 특정 날짜의 팀원 업무 전체 보기 */
+function openDayTasks(mid, ds) {
+  const m = members.find(x => x.id === mid);
+  const list = todos.filter(t => t.assigneeId === mid && t.dueDate === ds);
+  const po = { high: 0, medium: 1, low: 2 };
+  list.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
+  $('tasks-title').textContent = `${m ? m.name : ''} · ${ds} 업무 (${list.length}건)`;
+  $('tasks-body').innerHTML = list.length
+    ? list.map(taskCard).join('')
+    : '<div class="none-txt">해당 날짜 업무가 없습니다.</div>';
+  $('tasks-body').dataset.ctx = '';
+  openModal('modal-tasks');
 }
 
 function saveTodoModal() {
@@ -849,16 +932,25 @@ function bind() {
     }
   });
 
-  // 주간 통합 표: 체크박스 / 상세 / 추가 / 근태
+  // 주간 표: 근태칩 / 체크박스 / 업무상세 / 업무추가
   $('sch-body').addEventListener('click', e => {
     const c = e.target.closest('[data-chk]');
-    if (c) { updTodo(c.dataset.chk, { done: c.checked }); renderCalendar(); renderDashboard(); return; }
+    if (c) { updTodo(c.dataset.chk, { done: c.checked }); return; }
+
+    const at = e.target.closest('[data-att]');
+    if (at) { const [mid, ds] = at.dataset.att.split('|'); openStatus(mid, ds); return; }
+
     const op = e.target.closest('[data-open-task]');
     if (op) { openOneTask(op.dataset.openTask); return; }
-    const ad = e.target.closest('[data-add-todo]');
-    if (ad) { openTodo(ad.dataset.addTodo); return; }
-    const at = e.target.closest('td.w-att');
-    if (at) openStatus(at.dataset.mid, at.dataset.date);
+
+    const dayMore = e.target.closest('[data-day-tasks]');
+    if (dayMore) { const [mid, ds] = dayMore.dataset.dayTasks.split('|'); openDayTasks(mid, ds); return; }
+
+    const tk = e.target.closest('[data-tasks]');
+    if (tk) { const [mid, kind] = tk.dataset.tasks.split('|'); openTasks(mid, kind); return; }
+
+    const ad = e.target.closest('[data-add]');
+    if (ad) { const [mid, ds] = ad.dataset.add.split('|'); openTodo(mid, null, ds); }
   });
 
   // notice

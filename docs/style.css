@@ -235,53 +235,65 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .fchip.xs:hover{border-color:var(--pri);color:var(--pri)}
 .fchip.xs.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
-/* --- 주간 통합 테이블 (8명 기준) --- */
+/* --- 주간 스케줄 테이블 (요일 칸에 업무 배치) --- */
 .wk-table{width:100%;border-collapse:collapse;background:#fff;box-shadow:var(--sh);
-  border-radius:var(--rad);overflow:hidden;table-layout:fixed;min-width:900px}
+  border-radius:var(--rad);overflow:hidden;table-layout:fixed;min-width:1000px}
 .wk-table th{padding:9px 8px;font-size:.8125rem;font-weight:600;text-align:center;
   background:var(--pri);color:#fff;white-space:nowrap}
-.wk-table th.w-name{text-align:left;padding-left:12px;width:118px}
-.wk-table th.w-day{width:66px}
-.wk-table th.w-todo{text-align:left;padding-left:12px;width:auto;min-width:270px}
-.wk-table th.w-prog{width:96px}
+.wk-table th.w-name{text-align:left;padding-left:12px;width:124px}
+.wk-table th.w-day{width:auto;min-width:148px}
+.wk-table th.w-prog{width:84px}
 .wk-table th.today{background:var(--pri-d)}
-.wk-table td{border-bottom:1px solid var(--g200);vertical-align:middle;
-  padding:6px 8px;text-align:center;font-size:.875rem}
-.wk-table tbody tr:nth-child(even){background:var(--g50)}
-.wk-table tbody tr:hover{background:var(--pri-l)}
-.wk-table td.w-att{cursor:pointer;transition:background .12s}
-.wk-table td.w-att:hover{background:#bfdbfe}
-.wk-table td.w-mem{text-align:left;padding-left:12px}
+.wk-table td{border:1px solid var(--g200);vertical-align:top;padding:0;font-size:.875rem}
+.wk-table td.w-mem{text-align:left;padding:9px 12px;vertical-align:middle;background:var(--g50)}
 .wk-mem{display:flex;align-items:center;gap:7px;min-width:0}
 .wk-mem-n{font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wk-mem-p{font-size:.6875rem;color:var(--g400);white-space:nowrap}
+.wk-mem-p{font-size:.6875rem;color:var(--g400);white-space:nowrap;display:block;margin-top:2px}
+.wk-undated{display:inline-block;margin-top:5px;padding:1px 8px;border-radius:10px;
+  background:var(--g200);color:var(--g600);font-size:.6875rem;font-weight:700;cursor:pointer}
+.wk-undated:hover{background:var(--pri);color:#fff}
 
-/* 할 일 셀 */
-.wk-table td.w-tdo{text-align:left;padding:5px 10px;cursor:pointer;vertical-align:top}
-.wk-table td.w-tdo:hover{background:#dbeafe}
-.wt-list{display:flex;flex-direction:column;gap:2px}
-.wt{display:flex;align-items:center;gap:6px;min-width:0;border-radius:4px;padding:1px 2px}
-.wt:hover{background:rgba(37,99,235,.09)}
-.wt-c{width:15px;height:15px;accent-color:var(--pri);cursor:pointer;flex-shrink:0;margin:0}
-.wt-t{font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  min-width:0;flex:1;cursor:pointer}
-.wt-t:hover{text-decoration:underline;color:var(--pri)}
-.wt.done .wt-t{text-decoration:line-through;color:var(--g400)}
-.wt-f{flex-shrink:0;font-size:.625rem;font-weight:700;padding:0 5px;border-radius:8px}
-.wt-f.sup{background:#fee2e2;color:var(--dan)}
-.wt-f.due{background:#fef3c7;color:var(--warn)}
-.wt-f.hi{background:#fee2e2;color:var(--dan)}
-.wt-add{display:inline-flex;align-items:center;gap:3px;margin-top:3px;padding:2px 8px;
-  border:1px dashed var(--g300);border-radius:5px;background:#fff;color:var(--pri);
-  font-family:var(--font);font-size:.6875rem;font-weight:700;cursor:pointer}
-.wt-add:hover{background:var(--pri-l);border-style:solid;border-color:var(--pri)}
-.wt-none{color:var(--g300);font-size:.75rem}
+/* 요일 칸 = 업무 공간 */
+.wk-table td.w-cell{cursor:pointer;transition:background .12s;height:106px}
+.wk-table td.w-cell:hover{background:#f0f7ff}
+.wk-table td.w-cell.tday-col{background:#f8fbff}
+.dc{display:flex;flex-direction:column;height:100%;padding:4px 5px;min-height:98px}
+.dc-h{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:3px}
+.dc-add{border:none;background:none;color:var(--g300);font-size:.9375rem;font-weight:700;
+  cursor:pointer;line-height:1;padding:0 4px;border-radius:4px;font-family:var(--font)}
+.wk-table td.w-cell:hover .dc-add{color:var(--pri);background:var(--pri-l)}
+.dc-list{display:flex;flex-direction:column;gap:3px;overflow:hidden}
+
+/* 근태 최소 표시 */
+.att-mini{border:none;border-radius:9px;padding:1px 7px;font-family:var(--font);
+  font-size:.6875rem;font-weight:700;cursor:pointer;color:#fff;line-height:1.6;white-space:nowrap}
+.att-mini:hover{transform:scale(1.08)}
+.att-work{background:var(--suc);width:13px;height:13px;border-radius:50%;padding:0;
+  box-shadow:0 0 0 2px rgba(22,163,74,.18);font-size:0;line-height:0}
+.att-trip{background:var(--trip)} .att-vac{background:var(--vac)}
+.att-edu{background:var(--edu)} .att-etc{background:var(--etc)}
+
+/* 칸 안의 업무 */
+.dt{display:flex;align-items:flex-start;gap:5px;min-width:0;border-radius:4px;
+  padding:2px 3px;background:#fff;border-left:3px solid var(--g300)}
+.dt:hover{background:#e0edff}
+.dt-c{width:13px;height:13px;accent-color:var(--pri);cursor:pointer;margin:2px 0 0;flex-shrink:0}
+.dt-t{font-size:.75rem;line-height:1.35;cursor:pointer;min-width:0;flex:1;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dt-t:hover{color:var(--pri);text-decoration:underline}
+.dt.done{opacity:.55;border-left-color:var(--suc)}
+.dt.done .dt-t{text-decoration:line-through}
+.dt.hi{border-left-color:var(--warn)}
+.dt.due{border-left-color:var(--warn);background:#fffbeb}
+.dt.sup{border-left-color:var(--dan);background:var(--dan-l)}
+.dc-more{font-size:.6875rem;color:var(--pri);font-weight:700;cursor:pointer;padding-left:3px}
+.dc-more:hover{text-decoration:underline}
 
 /* 진행률 셀 */
-.wk-pg{display:flex;flex-direction:column;align-items:center;gap:3px}
-.wk-pg-bar{width:66px;height:6px;background:var(--g200);border-radius:8px;overflow:hidden}
+.wk-pg{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 6px}
+.wk-pg-bar{width:60px;height:6px;background:var(--g200);border-radius:8px;overflow:hidden}
 .wk-pg-bar i{display:block;height:100%;background:var(--pri);border-radius:8px}
-.wk-pg-t{font-size:.6875rem;font-weight:700;color:var(--g600)}
+.wk-pg-t{font-size:.6875rem;font-weight:700;color:var(--g600);white-space:nowrap}
 .wk-pg.alert .wk-pg-t{color:var(--dan)}
 
 .prog.compact{margin-top:12px}
@@ -309,6 +321,44 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .login-err{margin-top:10px;padding:8px 11px;background:var(--dan-l);border-radius:6px;
   color:var(--dan);font-size:.8125rem;font-weight:600}
 .login-err[hidden]{display:none}
+
+/* --- 🔴 지원 필요 비상 이펙트 --- */
+@keyframes sosPulse {
+  0%   { box-shadow: inset 4px 0 0 var(--dan), 0 0 0 0 rgba(220,38,38,.55); }
+  70%  { box-shadow: inset 4px 0 0 var(--dan), 0 0 0 7px rgba(220,38,38,0); }
+  100% { box-shadow: inset 4px 0 0 var(--dan), 0 0 0 0 rgba(220,38,38,0); }
+}
+@keyframes sosBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .55; transform: scale(1.14); }
+}
+@keyframes sosBg {
+  0%, 100% { background-color: #fef2f2; }
+  50%      { background-color: #fee2e2; }
+}
+tr.sos > td { animation: sosBg 1.6s ease-in-out infinite; }
+tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1.6s ease-in-out infinite; }
+.sos-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:11px;
+  background:var(--dan);color:#fff;font-size:.6875rem;font-weight:800;white-space:nowrap;
+  box-shadow:0 1px 4px rgba(220,38,38,.4)}
+.sos-tag .dotb{width:6px;height:6px;border-radius:50%;background:#fff;
+  animation:sosBlink 1s ease-in-out infinite}
+.sos-cnt{font-size:.6875rem;font-weight:700;color:var(--dan)}
+
+/* 대시보드 비고 */
+.rm{display:inline-block;padding:2px 9px;border-radius:11px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.rm-none{color:var(--g300);font-weight:500;background:none;padding:0}
+.rm-soon{background:#fef3c7;color:#b45309}
+.rm-now{background:var(--vac);color:#fff}
+.rm-long{background:#7c3aed;color:#fff}
+.rm-far{background:var(--g100);color:var(--g600)}
+
+/* 애니메이션 최소화 설정 존중 */
+@media (prefers-reduced-motion: reduce) {
+  tr.sos > td, tr.sos > td:first-child, .sos-tag .dotb { animation: none !important; }
+  tr.sos > td { background-color: #fee2e2 !important; }
+  tr.sos > td:first-child { box-shadow: inset 4px 0 0 var(--dan); }
+}
 
 /* --- Legend --- */
 .legend{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px;

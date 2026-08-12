@@ -95,13 +95,13 @@ async function main() {
     'got=' + off.w.DataStore.data.members.length);
   check('주간표 6행 렌더', off.D.querySelectorAll('#sch-body tr').length === 6);
 
-  off.click('#sch-body td.w-att');
+  off.click('#sch-body .att-mini');
   off.click('.sopt[data-status="휴가"]');
   off.click('#btn-status-save');
   await tick();
   check('오프라인 쓰기가 localStorage에 저장',
     !!off.store['ps2_sch'] && off.store['ps2_sch'].includes('휴가'));
-  check('화면에 배지 반영', off.D.querySelector('#sch-body .badge.b-vac') !== null);
+  check('화면에 배지 반영', off.D.querySelector('#sch-body .att-mini.att-vac') !== null);
   check('Firebase 미사용 (SDK 없어도 정상)', off.w.DataStore.isCloud() === false);
 
   // ==========================================================
@@ -153,20 +153,20 @@ async function main() {
   check('B 주간표도 6행', B.D.querySelectorAll('#sch-body tr').length === 6);
 
   // A가 근태 입력 -> B 반영
-  const aCell = A.D.querySelector('#sch-body td.w-att');
-  const aMid = aCell.dataset.mid, aDate = aCell.dataset.date;
+  const aCell = A.D.querySelector('#sch-body .att-mini');
+  const [aMid, aDate] = aCell.dataset.att.split('|');
   A.click(aCell);
   A.click('.sopt[data-status="출장"]');
   A.D.getElementById('status-note').value = '평택';
   A.click('#btn-status-save');
   await tick();
 
-  check('A 화면에 출장 배지', A.D.querySelector('#sch-body .badge.b-trip') !== null);
+  check('A 화면에 출장 배지', A.D.querySelector('#sch-body .att-mini.att-trip') !== null);
   check('서버에 근태 저장',
     Object.values(getPath(server.data, 'teams/packaging-tech/schedules') || {})
       .some(s => s.status === '출장' && s.note === '평택'));
   check('★ B 화면에 새로고침 없이 반영',
-    B.D.querySelector('#sch-body .badge.b-trip') !== null);
+    B.D.querySelector('#sch-body .att-mini.att-trip') !== null);
   const bSch = B.w.DataStore.data.schedules.find(s => s.memberId === aMid && s.date === aDate);
   check('B 데이터에도 동일 레코드', !!bSch && bSch.status === '출장' && bSch.note === '평택',
     JSON.stringify(bSch));
@@ -177,23 +177,24 @@ async function main() {
   B.D.getElementById('td-title').value = '낙하 시험 조건 검토';
   B.D.getElementById('td-assignee').value = bIds[1];
   B.D.getElementById('td-support').checked = true;
+  B.D.getElementById('td-due').value = aDate;   // 요일 칸에 표시되도록 마감일 지정
   B.click('#btn-todo-save');
   await tick();
 
-  check('B 화면에 할 일 표시', B.D.querySelector('#sch-body .wt') !== null);
-  check('★ A 화면에도 즉시 표시', A.D.querySelector('#sch-body .wt') !== null);
+  check('B 화면에 할 일 표시', B.D.querySelector('#sch-body .dt') !== null);
+  check('★ A 화면에도 즉시 표시', A.D.querySelector('#sch-body .dt') !== null);
   check('A 데이터에 할 일 수신',
     A.w.DataStore.data.todos.some(t => t.title === '낙하 시험 조건 검토'));
-  check('지원필요 플래그도 전파', A.D.querySelector('#sch-body .wt-f.sup') !== null);
+  check('지원필요 플래그도 전파', A.D.querySelector('#sch-body .dt.sup') !== null);
 
   // A가 완료 처리 -> B 반영
-  A.click('#sch-body .wt-c');
+  A.click('#sch-body .dt-c');
   await tick();
   check('A에서 완료 처리',
     A.w.DataStore.data.todos.find(t => t.title === '낙하 시험 조건 검토').done === true);
   check('★ B에도 완료 상태 전파',
     B.w.DataStore.data.todos.find(t => t.title === '낙하 시험 조건 검토').done === true);
-  check('B 화면 완료 스타일', B.D.querySelector('#sch-body .wt.done') !== null);
+  check('B 화면 완료 스타일', B.D.querySelector('#sch-body .dt.done') !== null);
 
   // B가 공지 작성 -> A 반영
   B.nav('notice');
@@ -224,21 +225,23 @@ async function main() {
   A.nav('week');
   const key = (m, d) => m + '|' + d;
   const used = new Set(A.w.DataStore.data.schedules.map(s => key(s.memberId, s.date)));
-  const aPick = [...A.D.querySelectorAll('#sch-body td.w-att')]
-    .find(c => !used.has(key(c.dataset.mid, c.dataset.date)));
-  const aPickMid = aPick.dataset.mid, aPickDate = aPick.dataset.date;
+  const aPick = [...A.D.querySelectorAll('#sch-body .att-mini')]
+    .map(c => c.dataset.att.split('|'))
+    .find(([mid, ds]) => !used.has(key(mid, ds)));
+  const aPickMid = aPick[0], aPickDate = aPick[1];
   // B가 고를 대상(다른 팀원)의 좌표만 미리 정해둔다 — 엘리먼트는 재렌더로 무효화되므로 매번 다시 조회
-  const bPickCell = [...B.D.querySelectorAll('#sch-body td.w-att')]
-    .find(c => c.dataset.mid !== aPickMid && !used.has(key(c.dataset.mid, c.dataset.date)));
-  const bPickMid = bPickCell.dataset.mid, bPickDate = bPickCell.dataset.date;
+  const bPick = [...B.D.querySelectorAll('#sch-body .att-mini')]
+    .map(c => c.dataset.att.split('|'))
+    .find(([mid, ds]) => mid !== aPickMid && !used.has(key(mid, ds)));
+  const bPickMid = bPick[0], bPickDate = bPick[1];
 
-  A.click(`#sch-body td.w-att[data-mid="${aPickMid}"][data-date="${aPickDate}"]`);
+  A.click(`#sch-body .att-mini[data-att="${aPickMid}|${aPickDate}"]`);
   A.click('.sopt[data-status="교육"]');
   A.click('#btn-status-save');
   await tick();
 
   // A의 쓰기로 B의 표가 다시 그려졌으므로 셀을 새로 조회한다
-  B.click(`#sch-body td.w-att[data-mid="${bPickMid}"][data-date="${bPickDate}"]`);
+  B.click(`#sch-body .att-mini[data-att="${bPickMid}|${bPickDate}"]`);
   check('B 근태 모달이 열림(대상 셀 유효)', B.D.getElementById('modal-status').hidden === false);
   B.click('.sopt[data-status="휴가"]');
   B.click('#btn-status-save');
@@ -253,13 +256,13 @@ async function main() {
   check('잘못된 레코드(memberId 없음) 생성 안 됨',
     allSch.every(s => !!s.memberId && !!s.date),
     JSON.stringify(allSch.map(s => ({ m: s.memberId, d: s.date }))));
-  check('A 화면에 B의 휴가도 보임', A.D.querySelector('#sch-body .badge.b-vac') !== null);
-  check('B 화면에 A의 교육도 보임', B.D.querySelector('#sch-body .badge.b-edu') !== null);
+  check('A 화면에 B의 휴가도 보임', A.D.querySelector('#sch-body .att-mini.att-vac') !== null);
+  check('B 화면에 A의 교육도 보임', B.D.querySelector('#sch-body .att-mini.att-edu') !== null);
 
   // ==========================================================
   sec('5. 삭제 전파');
   const delId = A.w.DataStore.data.todos[0].id;
-  A.click('#sch-body .wt-t');
+  A.click('#sch-body .dt-t');
   A.click('#tasks-body [data-tk-del]');
   await tick();
   check('A에서 할 일 삭제', !A.w.DataStore.data.todos.some(t => t.id === delId));
@@ -347,15 +350,16 @@ async function main() {
   // 익명 모드에서도 실시간 전파
   N1.nav('week');
   N2.nav('week');
-  N1.click('#sch-body td.w-att');
+  N1.click('#sch-body .att-mini');
   N1.click('.sopt[data-status="교육"]');
   N1.click('#btn-status-save');
   await tick();
   check('★ 익명 모드에서도 실시간 전파',
-    N2.D.querySelector('#sch-body .badge.b-edu') !== null);
+    N2.D.querySelector('#sch-body .att-mini.att-edu') !== null);
 
   N2.click('#btn-add-todo');
   N2.D.getElementById('td-title').value = '익명 모드 업무';
+  N2.D.getElementById('td-due').value = N2.D.querySelector('#sch-body .att-mini').dataset.att.split('|')[1];
   click2(N2);
   await tick();
   check('★ 반대 방향 전파도 정상',

@@ -61,7 +61,7 @@
                 <span class="chip xs c-edu">교육</span>
                 <span class="chip xs c-etc">기타</span>
                 <span class="lg-sep"></span>
-                <span class="lg-tip">요일칸=근태 · 할일칸=업무 · 제목클릭=상세</span>
+                <span class="lg-tip">근태칩 클릭=근태 · 칸 클릭=업무 추가 · 업무 클릭=상세</span>
                 <span class="lg-right">
                     <span class="fchip xs active" data-filter="all">전체</span>
                     <span class="fchip xs" data-filter="inprogress">진행중</span>
@@ -81,7 +81,6 @@
                             <th class="w-day">수</th>
                             <th class="w-day">목</th>
                             <th class="w-day">금</th>
-                            <th class="w-todo">할 일 (To Do)</th>
                             <th class="w-prog">진행률</th>
                         </tr>
                     </thead>
@@ -108,7 +107,14 @@
                     <button class="ibtn" id="btn-m-next">▶</button>
                 </div>
             </div>
-            <p class="hint">📌 날짜를 클릭하면 그 날의 팀원 근태를 한 번에 입력할 수 있습니다. (할 일은 주간 스케줄에서 관리)</p>
+            <div class="legend-top">
+                <span class="chip xs c-trip">출장</span>
+                <span class="chip xs c-vac">휴가</span>
+                <span class="chip xs c-edu">교육</span>
+                <span class="chip xs c-etc">기타</span>
+                <span class="lg-sep"></span>
+                <span class="lg-tip">표시 없는 팀원은 출근 · 날짜 클릭 시 팀원 전체 근태 일괄 입력 (할 일은 주간 스케줄에서 관리)</span>
+            </div>
             <div class="twrap">
                 <table class="mon-table">
                     <thead>
@@ -118,14 +124,6 @@
                     </thead>
                     <tbody id="mon-body"></tbody>
                 </table>
-            </div>
-            <div class="legend">
-                <span class="lg-label">범례:</span>
-                <span class="chip c-trip">출장</span>
-                <span class="chip c-vac">휴가</span>
-                <span class="chip c-edu">교육</span>
-                <span class="chip c-etc">기타</span>
-                <span class="lg-hint">· 표시 없는 팀원은 출근입니다</span>
             </div>
             <div class="panel" style="margin-top:16px">
                 <h3>이번 달 근태 집계</h3>
@@ -159,7 +157,7 @@
                         <h3>팀원별 현황</h3>
                         <div class="twrap">
                             <table class="dtable">
-                                <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>진행중 업무</th><th>완료 업무</th><th>상태</th></tr></thead>
+                                <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>메인 업무</th><th>지원 필요</th><th>비고</th></tr></thead>
                                 <tbody id="dash-body"></tbody>
                             </table>
                         </div>
