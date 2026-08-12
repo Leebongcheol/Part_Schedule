@@ -26,8 +26,8 @@ const DEFAULT_MEMBERS = [
 let members = [], schedules = [], todos = [], notices = [];
 let curDate = new Date();
 let monDate = new Date();
-let view = 'week';
-let tFilter = 'all', tMemberFilter = 'all', hideDone = false;
+let view = 'notice';
+let tFilter = 'all';
 let sCtx = { mid: null, date: null, sel: null };
 
 // ===== Helpers =====
@@ -255,7 +255,7 @@ function renderCalendar() {
 
   $('week-label').textContent = `${dates[0].getFullYear()}.${dates[0].getMonth()+1}.${dates[0].getDate()} ~ ${dates[4].getMonth()+1}.${dates[4].getDate()}`;
 
-  const ths = document.querySelectorAll('.sch-table thead th');
+  const ths = document.querySelectorAll('.wk-table thead th');
   for (let i = 1; i <= 5; i++) {
     const d = dates[i-1];
     ths[i].innerHTML = `${names[i-1]}<br><small style="font-weight:500;opacity:.85">${d.getMonth()+1}/${d.getDate()}</small>`;
@@ -265,38 +265,73 @@ function renderCalendar() {
   let html = '';
   members.forEach(m => {
     html += '<tr>';
-    html += `<td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>`;
+    // 팀원
+    html += `<td class="w-mem"><div class="wk-mem"><span class="mdot" style="background:${m.color}"></span>`
+          + `<span class="wk-mem-n">${esc(m.name)}</span></div>`
+          + `<span class="wk-mem-p">${esc(m.position)}</span></td>`;
+    // 근태 5칸
     dates.forEach(d => {
       const ds = fmt(d), s = getSch(m.id, ds);
       if (s) {
-        html += `<td class="clk" data-mid="${m.id}" data-date="${ds}" title="${esc(s.note || s.status)}">`
+        html += `<td class="w-att" data-mid="${m.id}" data-date="${ds}" title="${esc(s.note || s.status)}">`
               + `<span class="badge ${S_CLASS[s.status] || 'b-etc'}">${s.status}</span>`
               + (s.note ? '<span class="note-ico">📝</span>' : '') + '</td>';
       } else {
-        html += `<td class="clk" data-mid="${m.id}" data-date="${ds}" title="출근 (입력값 없음)"><span class="work-dot"></span></td>`;
+        html += `<td class="w-att" data-mid="${m.id}" data-date="${ds}" title="출근 (입력값 없음)"><span class="work-dot"></span></td>`;
       }
     });
 
-    // 주간 할 일 컬럼: 이번 주 관련 todo (마감일이 주 범위 내 or 마감없는 미완료)
-    const allW = todos.filter(t => t.assigneeId === m.id &&
-      ((t.dueDate && t.dueDate >= ws && t.dueDate <= we) || (!t.dueDate && !t.done)));
-    const wTodos = allW.slice(0, 3);
-    let tHtml = '';
-    if (wTodos.length) {
-      tHtml = '<div class="mini-todos">' + wTodos.map(t => {
-        const c = t.needSupport && !t.done ? '#dc2626' : (t.priority === 'high' ? '#f59e0b' : '#94a3b8');
-        return `<span class="mini-todo ${t.done?'done':''}" data-open-task="${t.id}" title="클릭하여 전체 내용 보기">`
-             + `<span class="mini-dot" style="background:${c}"></span><span class="mt-t">${esc(t.title)}</span></span>`;
-      }).join('')
-      + (allW.length > 3 ? `<span class="mini-more" data-tasks="${m.id}|open">… 외 ${allW.length - 3}건 더보기</span>` : '')
-      + '</div>';
+    // 할 일 (필터 적용)
+    const mine = todos.filter(t => t.assigneeId === m.id).filter(t => {
+      if (tFilter === 'inprogress') return !t.done;
+      if (tFilter === 'done') return t.done;
+      if (tFilter === 'support') return !t.done && t.needSupport;
+      if (tFilter === 'duesoon') { if (t.done) return false; const dl = daysLeft(t.dueDate); return dl !== null && dl <= 2; }
+      return true;
+    });
+    const po = { high: 0, medium: 1, low: 2 };
+    mine.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1)
+      || (a.dueDate || 'zzz').localeCompare(b.dueDate || 'zzz'));
+
+    let tHtml = '<div class="wt-list">';
+    if (mine.length) {
+      mine.forEach(t => {
+        const dl = daysLeft(t.dueDate);
+        const soon = !t.done && dl !== null && dl <= 2;
+        let flags = '';
+        if (!t.done && t.needSupport) flags += '<span class="wt-f sup">지원</span>';
+        if (soon) flags += `<span class="wt-f due">${dl < 0 ? `${-dl}일↑` : dl === 0 ? '오늘' : `D-${dl}`}</span>`;
+        else if (!t.done && t.priority === 'high') flags += '<span class="wt-f hi">높음</span>';
+        const tip = `${t.title}${t.dueDate ? ` (마감 ${t.dueDate})` : ''}${t.description ? '\n' + t.description : ''}`;
+        tHtml += `<div class="wt ${t.done ? 'done' : ''}">`
+              + `<input type="checkbox" class="wt-c" data-chk="${t.id}" ${t.done ? 'checked' : ''} title="완료 처리">`
+              + `<span class="wt-t" data-open-task="${t.id}" title="${esc(tip)}">${esc(t.title)}</span>`
+              + flags + '</div>';
+      });
     } else {
-      tHtml = '<span class="mini-add">+ 할 일 추가</span>';
+      tHtml += '<span class="wt-none">할 일 없음</span>';
     }
-    html += `<td class="todo-cell" data-add-todo="${m.id}" title="빈 곳 클릭 = 할 일 추가">${tHtml}</td>`;
+    tHtml += `<button class="wt-add" data-add-todo="${m.id}">+ 추가</button></div>`;
+    html += `<td class="w-tdo" data-add-todo="${m.id}" title="빈 곳 클릭 = 할 일 추가">${tHtml}</td>`;
+
+    // 진행률
+    const all = todos.filter(t => t.assigneeId === m.id);
+    const dn = all.filter(t => t.done).length;
+    const pc = all.length ? Math.round(dn / all.length * 100) : 0;
+    const wl = stat(m.id);
+    html += `<td><div class="wk-pg ${wl.need ? 'alert' : ''}">`
+          + `<div class="wk-pg-bar"><i style="width:${pc}%"></i></div>`
+          + `<span class="wk-pg-t">${wl.need ? '🔴 ' : ''}${dn}/${all.length} · ${pc}%</span></div></td>`;
     html += '</tr>';
   });
-  $('sch-body').innerHTML = html || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
+  $('sch-body').innerHTML = html || '<tr><td colspan="8" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
+
+  // 파트 전체 진행률
+  const tot = todos.length, dnAll = todos.filter(t => t.done).length;
+  const pctAll = tot ? Math.round(dnAll / tot * 100) : 0;
+  $('todo-prog').style.width = pctAll + '%';
+  $('todo-pct').textContent = pctAll + '%';
+  $('todo-cnt').textContent = tot ? `(완료 ${dnAll} / 전체 ${tot}건)` : '(등록된 할 일 없음)';
 }
 
 // ===== Render: Dashboard =====
@@ -456,73 +491,6 @@ function refreshTasksModal() {
   else closeModal('modal-tasks');
 }
 
-// ===== Render: Todo =====
-function renderTodos() {
-  // 팀원별 요약 (숫자 대신 업무 내용 미리보기, 클릭 시 상세 모달)
-  $('todo-summary-body').innerHTML = members.map(m => {
-    const k = stat(m.id);
-    const mine = todos.filter(t => t.assigneeId === m.id);
-    const open = mine.filter(t => !t.done);
-    const done = mine.filter(t => t.done);
-    const sup = open.filter(t => t.needSupport);
-    return `<tr>
-      <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
-      <td>${esc(m.position)}</td>
-      ${previewCell(m.id, 'open', open)}
-      ${previewCell(m.id, 'done', done)}
-      ${previewCell(m.id, 'support', sup)}
-      <td><span class="mini-prog"><i style="width:${k.pct}%"></i></span> <small>${k.pct}%</small></td>
-      <td><button class="addbtn" data-add-todo="${m.id}" title="${esc(m.name)}에게 할 일 추가">+</button></td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="7" class="none-txt">팀원이 없습니다</td></tr>';
-
-  // 목록
-  let list = todos.slice();
-  if (tMemberFilter !== 'all') list = list.filter(t => t.assigneeId === tMemberFilter);
-  if (tFilter === 'inprogress') list = list.filter(t => !t.done);
-  else if (tFilter === 'done') list = list.filter(t => t.done);
-  else if (tFilter === 'support') list = list.filter(t => !t.done && t.needSupport);
-  else if (tFilter === 'duesoon') list = list.filter(t => { if (t.done) return false; const d = daysLeft(t.dueDate); return d !== null && d <= 2; });
-  if (hideDone) list = list.filter(t => !t.done);
-
-  const po = { high: 0, medium: 1, low: 2 };
-  list.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1)
-    || (a.dueDate || 'zzz').localeCompare(b.dueDate || 'zzz'));
-
-  $('todo-list').innerHTML = list.map(t => {
-    const m = members.find(x => x.id === t.assigneeId);
-    const d = daysLeft(t.dueDate);
-    const soon = !t.done && d !== null && d <= 2;
-    const dueTxt = t.dueDate ? (d < 0 ? `⏰ ${-d}일 지남` : d === 0 ? '⏰ 오늘 마감' : d <= 2 ? `⏰ ${d}일 남음` : `📅 ${t.dueDate}`) : '';
-    return `<div class="titem ${t.done?'done':''} ${!t.done&&t.needSupport?'sup':soon?'due':''}">
-      <input type="checkbox" class="tchk" data-chk="${t.id}" ${t.done?'checked':''}>
-      <div class="tbody-c">
-        <div class="tt-title" data-open-task="${t.id}" title="클릭하여 전체 내용 보기" style="cursor:pointer">${!t.done&&t.needSupport?'🔴 ':''}${esc(t.title)}</div>
-        <div class="tt-meta">
-          <span>👤 ${m?esc(m.name):'미지정'}</span>
-          <span class="tprio ${P_CLASS[t.priority]||'p-m'}">${P_LABEL[t.priority]||'🟡 보통'}</span>
-          ${dueTxt?`<span${soon?' style="color:#d97706;font-weight:600"':''}>${dueTxt}</span>`:''}
-          ${t.description?`<span data-open-task="${t.id}" style="cursor:pointer" title="설명 보기">💬 내용보기</span>`:''}
-        </div>
-      </div>
-      <div class="tacts">
-        <button class="iconbtn" data-edit-todo="${t.id}" title="수정">✏️</button>
-        <button class="iconbtn del" data-del-todo="${t.id}" title="삭제">🗑️</button>
-      </div>
-    </div>`;
-  }).join('') || '<div class="none-txt">해당 조건의 할 일이 없습니다.</div>';
-
-  const tot = todos.length, dn = todos.filter(t => t.done).length;
-  const pct = tot ? Math.round(dn / tot * 100) : 0;
-  $('todo-prog').style.width = pct + '%';
-  $('todo-pct').textContent = pct + '%';
-
-  const sel = $('todo-member-filter'), cur = sel.value;
-  sel.innerHTML = '<option value="all">전체 팀원</option>' + members.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
-  sel.value = members.some(m => m.id === cur) ? cur : 'all';
-  $('btn-toggle-done').textContent = hideDone ? '완료 항목 보기' : '완료 항목 숨기기';
-}
-
 // ===== Render: Notice =====
 function renderNotices() {
   const icon = { '공지': '📢', '회의록': '📝', '메모': '💡' };
@@ -599,7 +567,7 @@ function startInlineEdit(td) {
 // ===== Render All =====
 function renderAll() {
   renderCalendar(); renderMonth(); renderDashboard();
-  renderTodos(); renderNotices(); renderMembers();
+  renderNotices(); renderMembers();
 }
 
 
@@ -608,7 +576,7 @@ function switchView(v) {
   view = v;
   document.querySelectorAll('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
-  if (v === 'week') { renderCalendar(); renderTodos(); }
+  if (v === 'week') renderCalendar();
   else if (v === 'month') renderMonth();
   else if (v === 'dashboard') renderDashboard();
   else if (v === 'notice') renderNotices();
@@ -792,19 +760,6 @@ function bind() {
     if (s) { setSch(n.dataset.note, ds, s.status, n.value.trim()); renderMonth(); renderCalendar(); toast('메모가 저장되었습니다'); }
   });
 
-  // calendar clicks
-  $('sch-body').addEventListener('click', e => {
-    // 개별 할 일 클릭 → 상세 보기 (셀의 "추가"보다 우선)
-    const op = e.target.closest('[data-open-task]');
-    if (op) { openOneTask(op.dataset.openTask); return; }
-    const more = e.target.closest('[data-tasks]');
-    if (more) { const [mid, kind] = more.dataset.tasks.split('|'); openTasks(mid, kind); return; }
-    const addCell = e.target.closest('[data-add-todo]');
-    if (addCell) { openTodo(addCell.dataset.addTodo); return; }
-    const td = e.target.closest('td.clk');
-    if (td) openStatus(td.dataset.mid, td.dataset.date);
-  });
-
   // status modal
   $('btn-status-save').addEventListener('click', () => {
     if (!sCtx.sel) { alert('상태를 선택해주세요.'); return; }
@@ -824,23 +779,6 @@ function bind() {
   // todo
   $('btn-add-todo').addEventListener('click', () => openTodo());
   $('btn-todo-save').addEventListener('click', saveTodoModal);
-  $('btn-toggle-done').addEventListener('click', () => { hideDone = !hideDone; renderTodos(); });
-  $('todo-summary-body').addEventListener('click', e => {
-    const b = e.target.closest('[data-add-todo]');
-    if (b) { openTodo(b.dataset.addTodo); return; }
-    const c = e.target.closest('[data-tasks]');
-    if (c) { const [mid, kind] = c.dataset.tasks.split('|'); openTasks(mid, kind); }
-  });
-  $('todo-list').addEventListener('click', e => {
-    const c = e.target.closest('[data-chk]');
-    if (c) { updTodo(c.dataset.chk, { done: c.checked }); renderAll(); return; }
-    const op = e.target.closest('[data-open-task]');
-    if (op) { openOneTask(op.dataset.openTask); return; }
-    const ed = e.target.closest('[data-edit-todo]');
-    if (ed) { openTodo(null, ed.dataset.editTodo); return; }
-    const dl = e.target.closest('[data-del-todo]');
-    if (dl && confirm('이 할 일을 삭제할까요?')) { delTodo(dl.dataset.delTodo); renderAll(); toast('삭제되었습니다'); }
-  });
 
   $('dash-body').addEventListener('click', e => {
     const c = e.target.closest('[data-tasks]');
@@ -862,15 +800,28 @@ function bind() {
       delTodo(dl.dataset.tkDel); renderAll(); refreshTasksModal(); toast('삭제되었습니다');
     }
   });
-  document.querySelector('.filters').addEventListener('click', e => {
+  // 범례 우측 필터 (주간 표의 할 일 표시 범위)
+  document.querySelector('.lg-right').addEventListener('click', e => {
     const b = e.target.closest('.fchip');
     if (b) {
       tFilter = b.dataset.filter;
-      document.querySelectorAll('.fchip').forEach(x => x.classList.remove('active'));
-      b.classList.add('active'); renderTodos();
+      document.querySelectorAll('.lg-right .fchip').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      renderCalendar();
     }
   });
-  $('todo-member-filter').addEventListener('change', e => { tMemberFilter = e.target.value; renderTodos(); });
+
+  // 주간 통합 표: 체크박스 / 상세 / 추가 / 근태
+  $('sch-body').addEventListener('click', e => {
+    const c = e.target.closest('[data-chk]');
+    if (c) { updTodo(c.dataset.chk, { done: c.checked }); renderCalendar(); renderDashboard(); return; }
+    const op = e.target.closest('[data-open-task]');
+    if (op) { openOneTask(op.dataset.openTask); return; }
+    const ad = e.target.closest('[data-add-todo]');
+    if (ad) { openTodo(ad.dataset.addTodo); return; }
+    const at = e.target.closest('td.w-att');
+    if (at) openStatus(at.dataset.mid, at.dataset.date);
+  });
 
   // notice
   $('btn-add-notice').addEventListener('click', () => openNotice());
