@@ -11,15 +11,29 @@ const POSITIONS = ['파트장', '책임연구원', '선임연구원'];
 const P_LABEL = { high: '🔴 높음', medium: '🟡 보통', low: '🟢 낮음' };
 const P_CLASS = { high: 'p-h', medium: 'p-m', low: 'p-l' };
 
+/**
+ * 공휴일 (월간 근태에서 일요일과 동일하게 빨간색 처리)
+ * 새 연도 공휴일은 여기에 'YYYY-MM-DD': '이름' 형태로 추가하면 됩니다.
+ */
+const HOLIDAYS = {
+  '2026-08-17': '광복절 대체',
+  '2026-09-24': '추석 연휴',
+  '2026-09-25': '추석',
+  '2026-10-05': '개천절 대체',
+  '2026-10-09': '한글날',
+  '2026-12-25': '성탄절'
+};
+function holidayOf(ds) { return HOLIDAYS[ds] || null; }
+
 const K = { m: 'ps2_members', s: 'ps2_sch', t: 'ps2_todos', n: 'ps2_notices' };
 
 const DEFAULT_MEMBERS = [
-  { id: uid(), name: '홍길동', position: '파트장', empNo: '', email: '', color: '#e11d48' },
-  { id: uid(), name: '김철수', position: '책임연구원', empNo: '', email: '', color: '#2563eb' },
-  { id: uid(), name: '이영희', position: '책임연구원', empNo: '', email: '', color: '#0d9488' },
-  { id: uid(), name: '박민수', position: '선임연구원', empNo: '', email: '', color: '#ea580c' },
-  { id: uid(), name: '정수진', position: '선임연구원', empNo: '', email: '', color: '#7c3aed' },
-  { id: uid(), name: '한지원', position: '선임연구원', empNo: '', email: '', color: '#0891b2' }
+  { id: uid(), name: '홍길동', position: '파트장', role: '', empNo: '', email: '', color: '#e11d48' },
+  { id: uid(), name: '김철수', position: '책임연구원', role: '', empNo: '', email: '', color: '#2563eb' },
+  { id: uid(), name: '이영희', position: '책임연구원', role: '', empNo: '', email: '', color: '#0d9488' },
+  { id: uid(), name: '박민수', position: '선임연구원', role: '', empNo: '', email: '', color: '#ea580c' },
+  { id: uid(), name: '정수진', position: '선임연구원', role: '', empNo: '', email: '', color: '#7c3aed' },
+  { id: uid(), name: '한지원', position: '선임연구원', role: '', empNo: '', email: '', color: '#0891b2' }
 ];
 
 // ===== State =====
@@ -220,9 +234,11 @@ function renderMonth() {
       const ds = fmt(d);
       const isOther = d.getMonth() !== month;
       const dow = d.getDay();
+      const holi = holidayOf(ds);
       const cls = [
         isOther ? 'other' : '',
         (dow === 0 || dow === 6) && !isOther ? 'wknd' : '',
+        holi && !isOther ? 'holi' : '',
         ds === td ? 'tday' : '',
         dow === 0 ? 'sun-c' : '', dow === 6 ? 'sat-c' : ''
       ].filter(Boolean).join(' ');
@@ -233,7 +249,9 @@ function renderMonth() {
       }
       const dayScheds = schedules.filter(s => s.date === ds);
       const shown = dayScheds.slice(0, 3);
-      let inner = `<span class="d-num">${d.getDate()}</span><div class="d-list">`;
+      let inner = `<span class="d-num">${d.getDate()}</span>`;
+      if (holi) inner += `<span class="d-holi" title="${esc(holi)}">${esc(holi)}</span>`;
+      inner += '<div class="d-list">';
       shown.forEach(s => {
         const m = members.find(x => x.id === s.memberId);
         if (!m) return;
@@ -340,9 +358,10 @@ function renderCalendar() {
       const s = getSch(m.id, ds);
       const isToday = ds === td;
 
+      // 출근(입력값 없음)은 아무것도 표시하지 않고, 칸에 마우스를 올렸을 때만 입력 버튼이 보인다
       const att = s
         ? `<button class="att-mini ${ATT_CLS[s.status] || 'att-etc'}" data-att="${m.id}|${ds}" title="${esc(s.status + (s.note ? ' · ' + s.note : ''))} (클릭하여 변경)">${s.status}${s.note ? '*' : ''}</button>`
-        : `<button class="att-mini att-work" data-att="${m.id}|${ds}" title="출근 (클릭하여 근태 입력)">출근</button>`;
+        : `<button class="att-ghost" data-att="${m.id}|${ds}" title="근태 입력 (현재: 출근)">근태</button>`;
 
       const all = todos.filter(t => t.assigneeId === m.id && t.dueDate === ds).filter(passFilter);
       all.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
@@ -367,25 +386,12 @@ function renderCalendar() {
             + `<div class="dc-list">${list}</div></div></td>`;
     });
 
-    // 진행률
-    const all = todos.filter(t => t.assigneeId === m.id);
-    const dn = all.filter(t => t.done).length;
-    const pc = all.length ? Math.round(dn / all.length * 100) : 0;
-    html += `<td><div class="wk-pg ${wl.need ? 'alert' : ''}">`
-          + `<div class="wk-pg-bar"><i style="width:${pc}%"></i></div>`
-          + `<span class="wk-pg-t">${dn}/${all.length} · ${pc}%</span></div></td>`;
     html += '</tr>';
   });
 
   $('sch-body').innerHTML = html
-    || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
+    || '<tr><td colspan="6" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
 
-  // 파트 전체 진행률
-  const tot = todos.length, dnAll = todos.filter(t => t.done).length;
-  const pctAll = tot ? Math.round(dnAll / tot * 100) : 0;
-  $('todo-prog').style.width = pctAll + '%';
-  $('todo-pct').textContent = pctAll + '%';
-  $('todo-cnt').textContent = tot ? `(완료 ${dnAll} / 전체 ${tot}건)` : '(등록된 할 일 없음)';
 }
 
 
@@ -433,17 +439,16 @@ function renderDashboard() {
     const s = getSch(m.id, td), st = s ? s.status : '출근';
     const cls = s ? (S_CLASS[st] || 'b-etc') : 'b-work';
     const k = stat(m.id);
-    const mine = todos.filter(t => t.assigneeId === m.id);
-    const open = mine.filter(t => !t.done);
-    const sup = open.filter(t => t.needSupport);
-    // 메인 업무 = 진행중 업무 중 우선순위 최상위
-    const po = { high: 0, medium: 1, low: 2 };
-    const main = open.slice().sort((a, b) => (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
+    const sup = todos.filter(t => t.assigneeId === m.id && !t.done && t.needSupport);
+    // 메인 업무 = 팀원 프로필의 '역할' (주간 스케줄의 업무와 연동되지 않음)
+    const role = (m.role || '').trim();
     return `<tr class="${k.need ? 'sos' : ''}">
       <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
       <td>${esc(m.position)}</td>
       <td><span class="badge ${cls}">${st}</span></td>
-      ${previewCell(m.id, 'open', main)}
+      <td>${role
+        ? `<span class="role-tx" title="${esc(role)}">${esc(role)}</span>`
+        : '<span class="role-none">- <small>(팀원 관리에서 입력)</small></span>'}</td>
       ${sup.length
         ? `<td class="cell-preview" data-tasks="${m.id}|support" title="${esc(sup.map(t => '· ' + t.title).join('\n'))}\n\n(클릭하여 상세 보기)">
              <span class="sos-tag"><span class="dotb"></span>지원 필요</span>
@@ -581,10 +586,11 @@ function renderMembers() {
       <td><input type="color" class="cdot" value="${m.color}" data-field="color" title="색상 변경"></td>
       <td class="edit-cell" data-field="name">${esc(m.name)}</td>
       <td class="edit-cell" data-field="position">${esc(m.position)}</td>
+      <td class="edit-cell" data-field="role">${esc(m.role) || '<span style="color:#cbd5e1">담당 업무 입력</span>'}</td>
       <td class="edit-cell" data-field="empNo">${esc(m.empNo) || '<span style="color:#cbd5e1">-</span>'}</td>
       <td class="edit-cell" data-field="email">${esc(m.email) || '<span style="color:#cbd5e1">-</span>'}</td>
       <td><button class="dbtn" data-del-member="${m.id}">삭제</button></td>
-    </tr>`).join('') || '<tr><td colspan="6" class="none-txt">등록된 팀원이 없습니다.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다.</td></tr>';
 }
 
 // ===== Inline edit =====
@@ -809,6 +815,7 @@ function saveNoticeModal() {
 // ===== Member modal =====
 function openMemberModal() {
   $('mb-name').value = ''; $('mb-position').value = '선임연구원';
+  $('mb-role').value = '';
   $('mb-empno').value = ''; $('mb-email').value = '';
   $('mb-color').value = '#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0');
   openModal('modal-member');
@@ -817,7 +824,8 @@ function openMemberModal() {
 function saveMemberModal() {
   const name = $('mb-name').value.trim();
   if (!name) { alert('이름을 입력해주세요.'); return; }
-  addMember({ name, position: $('mb-position').value, empNo: $('mb-empno').value.trim(),
+  addMember({ name, position: $('mb-position').value, role: $('mb-role').value.trim(),
+              empNo: $('mb-empno').value.trim(),
               email: $('mb-email').value.trim(), color: $('mb-color').value });
   closeModal('modal-member'); renderAll(); toast(`${name} 팀원이 추가되었습니다`);
 }

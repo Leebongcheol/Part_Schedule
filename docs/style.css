@@ -197,6 +197,13 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
   padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-more{font-size:.6875rem;color:var(--pri);font-weight:700}
 
+/* 공휴일 - 일요일과 동일 처리 */
+.mon-table td.holi{background:#fef2f2}
+.mon-table td.holi:hover{background:#fee2e2}
+.mon-table td.holi .d-num{color:#dc2626}
+.d-holi{display:block;font-size:.625rem;color:#dc2626;font-weight:700;margin-bottom:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* --- 일자별 근태 입력 모달 --- */
 .day-row{display:flex;align-items:center;gap:12px;padding:9px 4px;
   border-bottom:1px solid var(--g100);flex-wrap:wrap}
@@ -264,14 +271,18 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .wk-table td.w-cell:hover .dc-add{color:var(--pri);background:var(--pri-l)}
 .dc-list{display:flex;flex-direction:column;gap:3px;overflow:hidden}
 
-/* 근태 최소 표시 */
+/* 근태 최소 표시 (출근은 아무것도 표시하지 않음) */
 .att-mini{border:none;border-radius:9px;padding:1px 7px;font-family:var(--font);
   font-size:.6875rem;font-weight:700;cursor:pointer;color:#fff;line-height:1.6;white-space:nowrap}
 .att-mini:hover{transform:scale(1.08)}
-.att-work{background:var(--suc);width:13px;height:13px;border-radius:50%;padding:0;
-  box-shadow:0 0 0 2px rgba(22,163,74,.18);font-size:0;line-height:0}
 .att-trip{background:var(--trip)} .att-vac{background:var(--vac)}
 .att-edu{background:var(--edu)} .att-etc{background:var(--etc)}
+/* 근태가 없을 때(=출근): 칸에 마우스를 올리면 나타나는 흐린 버튼 */
+.att-ghost{border:1px dashed var(--g300);background:none;border-radius:9px;
+  padding:0 7px;font-family:var(--font);font-size:.625rem;font-weight:700;
+  color:var(--g400);cursor:pointer;opacity:0;transition:opacity .12s;line-height:1.7}
+.wk-table td.w-cell:hover .att-ghost{opacity:1}
+.att-ghost:hover{border-color:var(--pri);color:var(--pri);border-style:solid}
 
 /* 칸 안의 업무 */
 .dt{display:flex;align-items:flex-start;gap:5px;min-width:0;border-radius:4px;
@@ -289,14 +300,10 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .dc-more{font-size:.6875rem;color:var(--pri);font-weight:700;cursor:pointer;padding-left:3px}
 .dc-more:hover{text-decoration:underline}
 
-/* 진행률 셀 */
-.wk-pg{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 6px}
-.wk-pg-bar{width:60px;height:6px;background:var(--g200);border-radius:8px;overflow:hidden}
-.wk-pg-bar i{display:block;height:100%;background:var(--pri);border-radius:8px}
-.wk-pg-t{font-size:.6875rem;font-weight:700;color:var(--g600);white-space:nowrap}
-.wk-pg.alert .wk-pg-t{color:var(--dan)}
-
-.prog.compact{margin-top:12px}
+/* 대시보드 메인 업무(역할) 셀 */
+.role-tx{display:block;max-width:230px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:500}
+.role-none{color:var(--g300);font-size:.8125rem}
 .prog-cnt{font-size:.75rem;color:var(--g400);white-space:nowrap}
 
 /* --- 연결 상태 표시 --- */

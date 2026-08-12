@@ -55,13 +55,12 @@
 
             <!-- 범례 (표 위, 축소) -->
             <div class="legend-top">
-                <span class="lg-work"><span class="work-dot sm"></span>출근</span>
                 <span class="chip xs c-trip">출장</span>
                 <span class="chip xs c-vac">휴가</span>
                 <span class="chip xs c-edu">교육</span>
                 <span class="chip xs c-etc">기타</span>
                 <span class="lg-sep"></span>
-                <span class="lg-tip">근태칩 클릭=근태 · 칸 클릭=업무 추가 · 업무 클릭=상세</span>
+                <span class="lg-tip">칸 클릭=업무 추가 · 업무 클릭=상세 · 근태칩/근태버튼 클릭=근태 입력 (표시 없으면 출근)</span>
                 <span class="lg-right">
                     <span class="fchip xs active" data-filter="all">전체</span>
                     <span class="fchip xs" data-filter="inprogress">진행중</span>
@@ -81,18 +80,10 @@
                             <th class="w-day">수</th>
                             <th class="w-day">목</th>
                             <th class="w-day">금</th>
-                            <th class="w-prog">진행률</th>
                         </tr>
                     </thead>
                     <tbody id="sch-body"></tbody>
                 </table>
-            </div>
-
-            <div class="prog compact">
-                <span class="prog-lb">파트 전체 진행률</span>
-                <div class="prog-bar"><div class="prog-fill" id="todo-prog"></div></div>
-                <span class="prog-pct" id="todo-pct">0%</span>
-                <span class="prog-cnt" id="todo-cnt"></span>
             </div>
         </section>
 
@@ -187,11 +178,12 @@
                 <h2>👥 팀원 관리</h2>
                 <button class="pbtn" id="btn-add-member">+ 팀원 추가</button>
             </div>
-            <p class="hint">✏️ 표의 각 칸을 <b>클릭</b>하면 바로 수정할 수 있습니다. (Enter 저장 / Esc 취소)</p>
+            <p class="hint">✏️ 표의 각 칸을 <b>클릭</b>하면 바로 수정할 수 있습니다. (Enter 저장 / Esc 취소)<br>
+               <b>역할(메인 업무)</b> 은 대시보드 <b>메인 업무</b> 컬럼에 그대로 표시됩니다. 담당 업무를 짧게 적어주세요.</p>
             <div class="twrap">
                 <table class="dtable mtable">
                     <thead>
-                        <tr><th style="width:52px">색상</th><th>이름</th><th>직책</th><th>사번</th><th>이메일</th><th style="width:90px">작업</th></tr>
+                        <tr><th style="width:52px">색상</th><th>이름</th><th>직책</th><th>역할 (메인 업무)</th><th>사번</th><th>이메일</th><th style="width:90px">작업</th></tr>
                     </thead>
                     <tbody id="member-body"></tbody>
                 </table>
@@ -212,28 +204,37 @@
                     </ol>
                 </div>
                 <div class="gblock">
-                    <h3>📆 주간 스케줄 (근태 + 할 일 통합)</h3>
+                    <h3>📆 주간 스케줄 (근태 + 업무)</h3>
                     <ul>
-                        <li><b>하나의 표</b>에서 근태와 할 일을 함께 관리합니다 (팀원 1명 = 1행)</li>
-                        <li><b>요일 칸 클릭</b> → 근태 선택 (출장/휴가/교육/기타)</li>
-                        <li><b>입력값이 없으면 출근</b>이며 🟢 녹색 원으로 표시됩니다</li>
-                        <li><b>할 일 칸</b>: 체크박스로 완료 처리, <b>제목 클릭</b>으로 전체 내용 보기</li>
-                        <li>할 일 칸의 <b>+ 추가</b> 또는 빈 곳 클릭 → 해당 팀원에게 업무 배정</li>
-                        <li>범례 우측 <b>필터</b>(전체/진행중/완료/지원/임박)로 표시 범위 조절</li>
-                        <li>맨 우측 열에서 팀원별 <b>진행률</b>을 확인합니다</li>
+                        <li>팀원 1명 = 1행. <b>요일 칸에 그 날 업무를 넣습니다</b></li>
+                        <li><b>칸 클릭</b> 또는 <b>+</b> → 그 팀원·그 날짜로 업무 추가 (마감일이 자동 입력됩니다)</li>
+                        <li><b>업무 제목 클릭</b> → 전체 내용 보기 / <b>체크박스</b> → 완료</li>
+                        <li>근태는 <b>출장·휴가·교육·기타만 칩으로 표시</b>됩니다. 표시가 없으면 출근입니다</li>
+                        <li>근태를 넣으려면 칸에 마우스를 올려 나타나는 <b>[근태]</b> 버튼을 누르세요</li>
+                        <li>마감일이 없는 업무는 팀원 칸에 <b>📋 미지정</b> 배지로 모아 표시됩니다</li>
+                        <li><b>🔴 지원 필요</b>로 등록된 업무가 있으면 그 팀원 행이 붉게 점멸합니다</li>
                     </ul>
                 </div>
                 <div class="gblock">
                     <h3>🗓️ 월간 근태</h3>
                     <ul>
-                        <li>한 달 전체 근태를 <b>달력 형식</b>으로 봅니다 (할 일은 표시되지 않습니다)</li>
+                        <li>한 달 전체 근태를 <b>달력 형식</b>으로 봅니다 (업무는 표시되지 않습니다)</li>
                         <li><b>날짜 클릭</b> → 그 날 팀원 전체 근태를 한 번에 입력</li>
                         <li>버튼을 다시 누르거나 <b>출근</b>을 누르면 입력이 해제됩니다</li>
+                        <li><b>일요일과 공휴일</b>은 숫자가 빨간색, 배경이 연한 빨간색으로 표시됩니다</li>
                         <li>하단에서 팀원별 <b>월간 근태 집계</b>를 확인할 수 있습니다</li>
                     </ul>
                 </div>
                 <div class="gblock">
-                    <h3>✅ 할 일 관리 팁</h3>
+                    <h3>👥 팀원 관리</h3>
+                    <ul>
+                        <li>표의 <b>각 칸을 클릭</b>하면 즉시 수정 가능 (Enter 저장 / Esc 취소)</li>
+                        <li>직책: 파트장 / 책임연구원 / 선임연구원</li>
+                        <li><b>역할 (메인 업무)</b>: 담당 업무를 짧게 적으면 대시보드 <b>메인 업무</b>에 표시됩니다</li>
+                    </ul>
+                </div>
+                <div class="gblock">
+                    <h3>✅ 업무 관리 팁</h3>
                     <ul>
                         <li><b>지원 필요</b> 체크 시 🔴 표시되고 대시보드에 경고가 뜹니다</li>
                         <li>마감 <b>2일 이내</b>면 ⏰ 로 강조됩니다</li>
@@ -244,17 +245,10 @@
                 <div class="gblock">
                     <h3>📊 대시보드</h3>
                     <ul>
-                        <li>타이틀에 <b>오늘 날짜</b>가 표시됩니다</li>
-                        <li><b>근태 현황</b>과 <b>업무 현황</b>이 구분되어 표시됩니다</li>
-                        <li>진행중/완료 업무 칸을 클릭하면 상세 내용을 볼 수 있습니다</li>
-                    </ul>
-                </div>
-                <div class="gblock">
-                    <h3>👥 팀원 관리</h3>
-                    <ul>
-                        <li>표의 <b>각 칸을 클릭</b>하면 즉시 수정 가능 (인라인 편집)</li>
-                        <li>Enter = 저장, Esc = 취소</li>
-                        <li>직책: 파트장 / 책임연구원 / 선임연구원</li>
+                        <li>타이틀에 <b>오늘 날짜</b>, 근태 현황과 업무 현황이 구분되어 표시됩니다</li>
+                        <li><b>메인 업무</b> = 팀원 관리에 입력한 <b>역할</b>입니다. 주간 스케줄의 업무와는 별개입니다</li>
+                        <li><b>지원 필요</b> = 주간 스케줄에서 "지원 필요"로 체크된 업무가 있는 팀원 (붉게 점멸)</li>
+                        <li><b>비고</b> = 다가오는 근태 일정. <code>휴가 D-3</code>, 4일 이상이면 <code>장기휴가 D-5 (4일)</code></li>
                     </ul>
                 </div>
                 <div class="gblock warn">
@@ -378,6 +372,7 @@
                     <option value="파트장">파트장</option><option value="책임연구원">책임연구원</option><option value="선임연구원" selected>선임연구원</option>
                 </select></div>
             </div>
+            <div class="fg"><label>역할 (메인 업무)</label><input type="text" class="inp" id="mb-role" placeholder="예: 낙하시험 / 포장설계 표준화"></div>
             <div class="row2">
                 <div class="fg"><label>사번</label><input type="text" class="inp" id="mb-empno" placeholder="예: 24-12345"></div>
                 <div class="fg"><label>이메일</label><input type="email" class="inp" id="mb-email" placeholder="name@lge.com"></div>

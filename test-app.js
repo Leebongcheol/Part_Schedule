@@ -94,15 +94,16 @@ sec('4. 주간 스케줄 구조 (요일 칸에 업무 배치)');
 nav('week');
 check('주간 뷰 활성', D.getElementById('view-week').classList.contains('active'));
 const wkHeads = [...D.querySelectorAll('.wk-table thead th')].map(t => t.textContent.trim().split('\n')[0]);
-check('헤더 7열 (팀원+5일+진행률)', wkHeads.length === 7, JSON.stringify(wkHeads));
-check('할 일 컬럼 제거됨', !wkHeads.some(h => h.includes('할 일')), JSON.stringify(wkHeads));
-check('마지막 열 = 진행률', wkHeads[6].includes('진행률'), wkHeads[6]);
+check('헤더 6열 (팀원+5일)', wkHeads.length === 6, JSON.stringify(wkHeads));
+check('할 일 컬럼 없음', !wkHeads.some(h => h.includes('할 일')), JSON.stringify(wkHeads));
+check('진행률 컬럼 없음', !wkHeads.some(h => h.includes('진행률')), JSON.stringify(wkHeads));
+check('하단 전체 진행률 바 제거', D.getElementById('todo-prog') === null &&
+  D.getElementById('todo-pct') === null && D.getElementById('todo-cnt') === null);
 check('기본 팀원 6행', D.querySelectorAll('#sch-body tr').length === 6);
-check('행마다 7칸', [...D.querySelectorAll('#sch-body tr')].every(r => r.children.length === 7));
+check('행마다 6칸', [...D.querySelectorAll('#sch-body tr')].every(r => r.children.length === 6));
 check('요일 칸 5개/행', D.querySelector('#sch-body tr').querySelectorAll('td.w-cell').length === 5);
 check('요일 칸에 업무 목록 컨테이너', D.querySelector('#sch-body td.w-cell .dc-list') !== null);
 check('요일 칸에 업무 추가 버튼', D.querySelector('#sch-body td.w-cell .dc-add') !== null);
-check('진행률 표시 존재', D.querySelector('#sch-body .wk-pg-t') !== null);
 check('팀원칸에 직책 표시', D.querySelector('#sch-body .wk-mem-p') !== null);
 check('요일 칸 높이 확대 CSS', /\.wk-table td\.w-cell\{[^}]*height:106px/.test(css));
 check('요일 열 폭 확대 CSS', /\.wk-table th\.w-day\{[^}]*min-width:148px/.test(css));
@@ -116,33 +117,37 @@ check('범례가 표보다 위에 위치',
 check('범례 폰트 축소(.75rem)', /\.legend-top\{[^}]*font-size:\.75rem/.test(css));
 check('범례 칩 축소(.6875rem)', /\.legend-top \.chip\.xs\{[^}]*font-size:\.6875rem/.test(css));
 check('범례 패딩 축소', /\.legend-top\{[^}]*padding:6px 10px/.test(css));
-check('출근 녹색원 범례 포함', legend.querySelector('.work-dot') !== null);
+check('범례에 출근 항목 없음(표시하지 않으므로)', legend.querySelector('.work-dot') === null);
 check('4가지 근태 칩 포함', legend.querySelectorAll('.chip').length === 4);
 check('구버전 큰 범례 미사용', D.querySelector('#view-week .legend') === null);
 
-sec('6. 근태 최소 표시 (칸 좌상단 칩)');
-const atts = D.querySelectorAll('#sch-body .att-mini');
-check('모든 요일 칸에 근태 칩', atts.length === 30, 'count=' + atts.length);
-check('입력 없으면 출근 스타일', D.querySelectorAll('#sch-body .att-mini.att-work').length === 30);
-check('출근 칩은 초록 원 CSS', /\.att-work\{[^}]*background:var\(--suc\)/.test(css));
-check('칩 title에 안내', (atts[0].getAttribute('title') || '').includes('출근'), atts[0].getAttribute('title'));
+sec('6. 근태 표시: 출근은 표시하지 않음');
+check('출근 칩이 하나도 없음', D.querySelectorAll('#sch-body .att-mini').length === 0,
+  'count=' + D.querySelectorAll('#sch-body .att-mini').length);
+check('att-work 클래스 자체가 제거됨', !/\.att-work\{/.test(css));
+const ghosts = D.querySelectorAll('#sch-body .att-ghost');
+check('대신 근태 입력 버튼 30개(호버 시 표시)', ghosts.length === 30, 'count=' + ghosts.length);
+check('평상시 숨김 처리(opacity:0)', /\.att-ghost\{[^}]*opacity:0/.test(css));
+check('칸 호버 시 노출 규칙', /td\.w-cell:hover \.att-ghost\{opacity:1\}/.test(css));
+check('범례에서 출근 항목 제거', D.querySelector('#view-week .legend-top .work-dot') === null);
 
-// 근태 칩 클릭 -> 근태 모달
-click(atts[0]);
-check('근태 칩 클릭 시 모달 열림', D.getElementById('modal-status').hidden === false);
+// 근태 입력 -> 칩 생성
+click(ghosts[0]);
+check('근태 버튼 클릭 시 모달', D.getElementById('modal-status').hidden === false);
 click(D.querySelector('.sopt[data-status="출장"]'));
 D.getElementById('status-note').value = '평택 출장';
 click(D.getElementById('btn-status-save'));
-check('출장 칩으로 변경', D.querySelector('#sch-body .att-mini.att-trip') !== null);
-check('출근 칩 1개 감소', D.querySelectorAll('#sch-body .att-mini.att-work').length === 29);
+check('출장 칩 생성', D.querySelector('#sch-body .att-mini.att-trip') !== null);
+check('출장 칩은 1개만', D.querySelectorAll('#sch-body .att-mini').length === 1);
 check('메모 있으면 * 표시', D.querySelector('#sch-body .att-mini.att-trip').textContent.includes('*'));
+check('근태 버튼은 29개로 감소', D.querySelectorAll('#sch-body .att-ghost').length === 29);
 check('저장소 반영', store['ps2_sch'].includes('평택 출장'));
 
-const tripChip = D.querySelector('#sch-body .att-mini.att-trip');
-click(tripChip);
+click(D.querySelector('#sch-body .att-mini.att-trip'));
 check('되돌리기 버튼 노출', D.getElementById('btn-status-clear').hidden === false);
 click(D.getElementById('btn-status-clear'));
-check('출근으로 복귀', D.querySelectorAll('#sch-body .att-mini.att-work').length === 30);
+check('출근으로 되돌리면 칩 사라짐', D.querySelectorAll('#sch-body .att-mini').length === 0);
+check('근태 버튼 30개로 복귀', D.querySelectorAll('#sch-body .att-ghost').length === 30);
 
 sec('7. 요일 칸에 업무 배치 / 완료 / 상세');
 const ids0 = memberIds();
@@ -209,13 +214,12 @@ check('마감일 없는 업무는 팀원칸에 배지로 표시',
 check('미지정 배지에 건수 표시',
   rowOf(ids0[0]).querySelector('.wk-undated').textContent.includes('1'),
   rowOf(ids0[0]).querySelector('.wk-undated').textContent);
-check('근태 칩과 업무가 같은 칸에 공존',
-  cellOf(ids0[0], MON).querySelector('.att-mini') !== null &&
+check('근태 입력 버튼과 업무가 같은 칸에 공존',
+  cellOf(ids0[0], MON).querySelector('.att-ghost') !== null &&
   cellOf(ids0[0], MON).querySelector('.dt') !== null);
 check('긴 제목 2줄 클램프 CSS', /\.dt-t\{[^}]*-webkit-line-clamp:2/.test(css));
 check('지원필요 업무 강조 클래스', cellOf(ids0[0], MON).querySelector('.dt.sup') !== null);
-check('진행률 0/5', rowOf(ids0[0]).querySelector('.wk-pg-t').textContent.includes('0/4'),
-  rowOf(ids0[0]).querySelector('.wk-pg-t').textContent);
+check('진행률 컬럼 없음(현 status만 공유)', rowOf(ids0[0]).querySelector('.wk-pg-t') === null);
 
 sec('8. 지원 필요 비상 이펙트');
 check('해당 팀원 행에 sos 클래스', rowOf(ids0[0]).classList.contains('sos'));
@@ -234,10 +238,7 @@ click(supChk);
 check('체크 시 완료 저장', todosOf().find(t => t.id === supId).done === true);
 check('완료 스타일', cellOf(ids0[0], MON).querySelector('.dt.done') !== null);
 check('완료되면 sos 해제', !rowOf(ids0[0]).classList.contains('sos'));
-check('진행률 1/4 갱신', rowOf(ids0[0]).querySelector('.wk-pg-t').textContent.includes('1/4'),
-  rowOf(ids0[0]).querySelector('.wk-pg-t').textContent);
-check('파트 전체 진행률', D.getElementById('todo-pct').textContent === '20%',
-  D.getElementById('todo-pct').textContent);
+check('완료해도 진행률 지표 없음', D.getElementById('todo-pct') === null);
 
 click(cellOf(ids0[0], MON).querySelector(`.dt-t[data-open-task="${supId}"]`));
 check('상세 모달 열림', D.getElementById('modal-tasks').hidden === false);
@@ -269,9 +270,9 @@ click(D.getElementById('btn-member-save'));
 check('팀원 8명', JSON.parse(store['ps2_members']).length === 8);
 nav('week');
 check('주간표 8행', D.querySelectorAll('#sch-body tr').length === 8);
-check('8행 모두 7칸', [...D.querySelectorAll('#sch-body tr')].every(r => r.children.length === 7));
-check('근태 칩 40개(8명 x 5일)', D.querySelectorAll('#sch-body .att-mini').length === 40,
-  'got=' + D.querySelectorAll('#sch-body .att-mini').length);
+check('8행 모두 6칸', [...D.querySelectorAll('#sch-body tr')].every(r => r.children.length === 6));
+check('근태 입력 버튼 40개(8명 x 5일)', D.querySelectorAll('#sch-body .att-ghost').length === 40,
+  'got=' + D.querySelectorAll('#sch-body .att-ghost').length);
 check('요일 칸 40개', D.querySelectorAll('#sch-body td.w-cell').length === 40);
 check('표 최소폭 지정(가로스크롤 대비)', /\.wk-table\{[^}]*min-width:1000px/.test(css));
 check('열 너비 고정 레이아웃', /\.wk-table\{[^}]*table-layout:fixed/.test(css));
@@ -305,6 +306,41 @@ check('이전 달 복귀', D.getElementById('month-label').textContent === lbl);
 click(D.getElementById('btn-m-next'));
 click(D.getElementById('btn-m-today'));
 check('이번 달 버튼', D.getElementById('month-label').textContent === lbl);
+
+sec('10-1. 공휴일 표시 (일요일과 동일 처리)');
+const HOLI = ['2026-08-17', '2026-09-24', '2026-09-25', '2026-10-05', '2026-10-09', '2026-12-25'];
+const appSrc = fs.readFileSync('docs/app.js', 'utf8');
+check('공휴일 목록이 코드에 정의', /const HOLIDAYS = \{/.test(appSrc));
+HOLI.forEach(d => check('공휴일 등록: ' + d, appSrc.includes("'" + d + "'")));
+check('공휴일 배경 CSS(연한 빨강)', /\.mon-table td\.holi\{background:#fef2f2\}/.test(css));
+check('공휴일 숫자 빨강 CSS', /\.mon-table td\.holi \.d-num\{color:#dc2626\}/.test(css));
+check('일요일 숫자 빨강 CSS(동일 색)', /\.mon-table td\.sun-c \.d-num\{color:#dc2626\}/.test(css));
+
+// 실제 달력에서 확인: 해당 월로 이동해 공휴일 칸 검사
+function gotoMonth(y, mo) {
+  nav('month');
+  // 이번 달로 초기화 후 목표 월까지 이동
+  click(D.getElementById('btn-m-today'));
+  const now = new Date();
+  let diff = (y - now.getFullYear()) * 12 + (mo - (now.getMonth() + 1));
+  const btn = diff >= 0 ? 'btn-m-next' : 'btn-m-prev';
+  for (let i = 0; i < Math.abs(diff); i++) click(D.getElementById(btn));
+}
+[['2026-08-17', 2026, 8], ['2026-10-09', 2026, 10], ['2026-12-25', 2026, 12]].forEach(([ds, y, mo]) => {
+  gotoMonth(y, mo);
+  const cell = D.querySelector(`#mon-body td[data-day="${ds}"]`);
+  if (!cell) { check(ds + ' 칸 존재', false, '달력에 없음'); return; }
+  check(ds + ' 칸에 holi 클래스', cell.classList.contains('holi'));
+  check(ds + ' 공휴일명 표시', cell.querySelector('.d-holi') !== null,
+    cell.querySelector('.d-holi') ? cell.querySelector('.d-holi').textContent : '없음');
+});
+
+// 평일은 공휴일 처리되지 않아야 함
+gotoMonth(2026, 8);
+const normal = D.querySelector('#mon-body td[data-day="2026-08-18"]');
+if (normal) check('일반 평일은 holi 아님', !normal.classList.contains('holi'));
+check('공휴일도 근태 입력 가능(클릭 가능)',
+  (D.querySelector('#mon-body td[data-day="2026-08-17"]') || {}).dataset !== undefined);
 
 sec('11. 월간 날짜 클릭 → 일괄 근태 입력');
 const dayCell = D.querySelector('#mon-body td[data-day]');
@@ -361,14 +397,28 @@ check('컬럼 = 이름/직책/오늘 근태/메인 업무/지원 필요/비고',
 check('완료 업무 컬럼 없음', !dHead.includes('완료 업무'));
 check('상태 컬럼은 비고로 대체', !dHead.includes('상태') && dHead.includes('비고'));
 const dRow = D.querySelector('#dash-body tr');
-check('메인 업무 칸 클릭 가능', dRow.querySelector('[data-tasks$="|open"]') !== null);
-check('메인 업무는 내용 표시(숫자 아님)',
-  !/^\\d+$/.test(dRow.querySelector('[data-tasks$="|open"]').textContent.trim()),
-  JSON.stringify(dRow.querySelector('[data-tasks$="|open"]').textContent.trim()));
-check('비고 컬럼 렌더', dRow.querySelector('.rm') !== null);
-click(dRow.querySelector('[data-tasks$="|open"]'));
-check('상세 모달 열림', D.getElementById('modal-tasks').hidden === false);
-click(D.querySelector('[data-close="modal-tasks"]'));
+check('메인 업무는 업무(To Do)와 연동되지 않음',
+  dRow.querySelector('[data-tasks$="|open"]') === null);
+check('역할 미입력 시 안내 표시', dRow.querySelector('.role-none') !== null);
+
+// 팀원 관리에서 역할 입력 -> 대시보드 메인 업무에 반영
+nav('members');
+const roleCell = D.querySelector('#member-body td.edit-cell[data-field="role"]');
+check('팀원 관리에 역할 컬럼 존재', roleCell !== null);
+click(roleCell);
+const roleInp = D.querySelector('#member-body .inline-inp');
+check('역할 인라인 입력 가능', roleInp !== null);
+roleInp.value = '낙하시험 / 포장설계 표준화';
+roleInp.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+check('역할이 저장소에 반영', store['ps2_members'].includes('포장설계 표준화'));
+nav('dashboard');
+const roleTx = D.querySelector('#dash-body .role-tx');
+check('대시보드 메인 업무에 역할 표시', roleTx !== null &&
+  roleTx.textContent === '낙하시험 / 포장설계 표준화', roleTx && roleTx.textContent);
+check('긴 역할은 말줄임 CSS', /\.role-tx\{[^}]*text-overflow:ellipsis/.test(css));
+check('업무를 추가해도 메인 업무는 변하지 않음',
+  D.querySelector('#dash-body .role-tx').textContent === '낙하시험 / 포장설계 표준화');
+
 
 sec('12-1. 비고 컬럼: 휴가 D-n / 장기휴가 판정');
 // 월간 뷰에서 특정 팀원에게 미래 휴가를 넣고 비고 표시를 확인
@@ -461,6 +511,9 @@ check('대시보드 최근공지 반영', (nav('dashboard'),
 sec('14. 팀원 인라인 수정');
 nav('members');
 check('8행 렌더', D.querySelectorAll('#member-body tr').length === 8);
+const mHead = [...D.querySelectorAll('.mtable thead th')].map(t => t.textContent.trim());
+check('팀원 관리 7열 (역할 추가)', mHead.length === 7, JSON.stringify(mHead));
+check('역할 컬럼 존재', mHead.some(h => h.includes('역할')), JSON.stringify(mHead));
 const nameCell = D.querySelector('#member-body td.edit-cell[data-field="name"]');
 click(nameCell);
 const inp = D.querySelector('#member-body .inline-inp');

@@ -95,7 +95,7 @@ async function main() {
     'got=' + off.w.DataStore.data.members.length);
   check('주간표 6행 렌더', off.D.querySelectorAll('#sch-body tr').length === 6);
 
-  off.click('#sch-body .att-mini');
+  off.click('#sch-body .att-ghost');
   off.click('.sopt[data-status="휴가"]');
   off.click('#btn-status-save');
   await tick();
@@ -153,7 +153,7 @@ async function main() {
   check('B 주간표도 6행', B.D.querySelectorAll('#sch-body tr').length === 6);
 
   // A가 근태 입력 -> B 반영
-  const aCell = A.D.querySelector('#sch-body .att-mini');
+  const aCell = A.D.querySelector('#sch-body .att-ghost');
   const [aMid, aDate] = aCell.dataset.att.split('|');
   A.click(aCell);
   A.click('.sopt[data-status="출장"]');
@@ -225,23 +225,23 @@ async function main() {
   A.nav('week');
   const key = (m, d) => m + '|' + d;
   const used = new Set(A.w.DataStore.data.schedules.map(s => key(s.memberId, s.date)));
-  const aPick = [...A.D.querySelectorAll('#sch-body .att-mini')]
+  const aPick = [...A.D.querySelectorAll('#sch-body .att-ghost')]
     .map(c => c.dataset.att.split('|'))
     .find(([mid, ds]) => !used.has(key(mid, ds)));
   const aPickMid = aPick[0], aPickDate = aPick[1];
   // B가 고를 대상(다른 팀원)의 좌표만 미리 정해둔다 — 엘리먼트는 재렌더로 무효화되므로 매번 다시 조회
-  const bPick = [...B.D.querySelectorAll('#sch-body .att-mini')]
+  const bPick = [...B.D.querySelectorAll('#sch-body .att-ghost')]
     .map(c => c.dataset.att.split('|'))
     .find(([mid, ds]) => mid !== aPickMid && !used.has(key(mid, ds)));
   const bPickMid = bPick[0], bPickDate = bPick[1];
 
-  A.click(`#sch-body .att-mini[data-att="${aPickMid}|${aPickDate}"]`);
+  A.click(`#sch-body [data-att="${aPickMid}|${aPickDate}"]`);
   A.click('.sopt[data-status="교육"]');
   A.click('#btn-status-save');
   await tick();
 
   // A의 쓰기로 B의 표가 다시 그려졌으므로 셀을 새로 조회한다
-  B.click(`#sch-body .att-mini[data-att="${bPickMid}|${bPickDate}"]`);
+  B.click(`#sch-body [data-att="${bPickMid}|${bPickDate}"]`);
   check('B 근태 모달이 열림(대상 셀 유효)', B.D.getElementById('modal-status').hidden === false);
   B.click('.sopt[data-status="휴가"]');
   B.click('#btn-status-save');
@@ -350,7 +350,7 @@ async function main() {
   // 익명 모드에서도 실시간 전파
   N1.nav('week');
   N2.nav('week');
-  N1.click('#sch-body .att-mini');
+  N1.click('#sch-body .att-ghost');
   N1.click('.sopt[data-status="교육"]');
   N1.click('#btn-status-save');
   await tick();
@@ -359,7 +359,7 @@ async function main() {
 
   N2.click('#btn-add-todo');
   N2.D.getElementById('td-title').value = '익명 모드 업무';
-  N2.D.getElementById('td-due').value = N2.D.querySelector('#sch-body .att-mini').dataset.att.split('|')[1];
+  N2.D.getElementById('td-due').value = N2.D.querySelector('#sch-body .att-ghost').dataset.att.split('|')[1];
   click2(N2);
   await tick();
   check('★ 반대 방향 전파도 정상',
