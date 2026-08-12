@@ -11,7 +11,7 @@
 window.FIREBASE_CONFIG = {
   apiKey: '',
   authDomain: '',
-  databaseURL: '',   // 예: https://part-schedule-xxxx-default-rtdb.firebaseio.com
+  databaseURL: '',   // 예: https://part-schedule-xxxx-default-rtdb.asia-southeast1.firebasedatabase.app
   projectId: ''
 };
 
@@ -19,8 +19,17 @@ window.FIREBASE_CONFIG = {
 window.TEAM_ID = 'packaging-tech';
 
 /**
- * 로그인 요구 여부.
- * true  : 공유 계정으로 로그인해야 데이터 접근 (권장)
- * false : URL을 아는 사람은 누구나 읽기/쓰기 가능 (보안 규칙도 공개여야 함)
+ * 인증 방식
+ *
+ *  'anonymous' (권장) : 로그인 화면 없음. 접속하면 자동 인증되어 바로 사용.
+ *                       보안 규칙은 "auth != null" 을 사용하세요.
+ *                       → 링크만 공유하면 되므로 파트 공유에 가장 편합니다.
+ *
+ *  'login'            : 공유 계정(이메일/비밀번호)으로 로그인해야 사용.
+ *                       한 번 로그인하면 브라우저에 유지되어 매번 입력하지 않습니다.
+ *                       → 외부 노출을 더 막고 싶을 때 사용.
+ *
+ *  'none'             : 인증 없이 접근. 보안 규칙을 완전히 공개(true)해야 하므로
+ *                       권장하지 않습니다.
  */
-window.REQUIRE_LOGIN = true;
+window.AUTH_MODE = 'anonymous';

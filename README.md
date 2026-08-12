@@ -20,6 +20,9 @@ GitHub Pages URL 하나만 공유하면 바로 사용할 수 있습니다.
 파트 공유를 켜려면 **[docs/SETUP-FIREBASE.md](docs/SETUP-FIREBASE.md)** 를 따라
 Firebase Realtime Database를 연결하세요. 약 10분, 무료, 카드 등록 불필요.
 
+연결하면 **로그인 화면 없이 링크만 공유**해서 사용합니다 (익명 인증).
+접근을 제한하려면 `AUTH_MODE`를 `'login'`으로 바꿔 공유 계정 방식으로 전환할 수 있습니다.
+
 ---
 
 ## 기능

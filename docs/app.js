@@ -607,9 +607,16 @@ function renderConnStatus(s, msg) {
   el.innerHTML = `<span class="conn-ico">${u.ico}</span><span class="conn-tx">${u.txt}</span>`;
   el.title = msg || u.txt;
 
-  // 로그인 게이트
+  // 로그인 게이트 (login 모드에서만 사용)
   const gate = $('modal-login');
   if (gate) gate.hidden = (s !== 'auth-required');
+
+  // 로그아웃 버튼은 계정 로그인 방식일 때만 노출
+  const lo = $('btn-logout');
+  if (lo) {
+    const usesLogin = DataStore.isCloud() && DataStore.authMode() === 'login';
+    lo.hidden = !usesLogin;
+  }
 
   // 오프라인 모드 안내 배너
   const banner = $('offline-banner');

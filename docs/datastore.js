@@ -33,6 +33,7 @@
     _db: null,
     _readyFired: false,
     _seen: null,
+    _anonTried: false,
 
     // ---------- 공통 ----------
     _emit() { if (typeof this.onChange === 'function') this.onChange(); },
@@ -112,20 +113,46 @@
       this.loadLocal();
       this._emit();
 
-      const needLogin = global.REQUIRE_LOGIN !== false;
-      if (!needLogin) { this._attach(); return Promise.resolve('cloud'); }
+      const mode = this.authMode();
+      if (mode === 'none') { this._attach(); return Promise.resolve('cloud'); }
 
       return new Promise(resolve => {
         global.firebase.auth().onAuthStateChanged(u => {
           this.user = u;
-          if (u) { this._attach(); resolve('cloud'); }
-          else {
-            this._detach();
-            this._setStatus('auth-required', '로그인이 필요합니다');
-            resolve('auth-required');
+          if (u) { this._attach(); resolve('cloud'); return; }
+
+          if (mode === 'anonymous') {
+            // 로그인 화면 없이 자동 인증
+            if (this._anonTried) {
+              this._setStatus('error', '자동 인증 실패 - Authentication에서 익명 로그인을 사용 설정하세요');
+              resolve('error');
+              return;
+            }
+            this._anonTried = true;
+            this._setStatus('connecting', '자동 인증 중...');
+            global.firebase.auth().signInAnonymously().catch(e => {
+              const code = (e && e.code) || (e && e.message) || '';
+              console.warn('[DataStore] 익명 로그인 실패:', code);
+              this._setStatus('error',
+                '자동 인증 실패(' + code + ') - Authentication에서 익명 로그인을 사용 설정하세요');
+              resolve('error');
+            });
+            return;
           }
+
+          // mode === 'login'
+          this._detach();
+          this._setStatus('auth-required', '로그인이 필요합니다');
+          resolve('auth-required');
         });
       });
+    },
+
+    /** 인증 방식 결정 (구버전 REQUIRE_LOGIN 설정도 계속 지원) */
+    authMode() {
+      if (global.AUTH_MODE) return global.AUTH_MODE;
+      if (global.REQUIRE_LOGIN === false) return 'none';
+      return 'login';
     },
 
     signIn(email, password) {

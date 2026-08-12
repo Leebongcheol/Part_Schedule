@@ -61,7 +61,7 @@ async function makeClient(label, fb, cfg, teamId) {
   if (fb) w.firebase = fb;
   w.FIREBASE_CONFIG = cfg || { apiKey: '', authDomain: '', databaseURL: '', projectId: '' };
   w.TEAM_ID = teamId || 'packaging-tech';
-  w.REQUIRE_LOGIN = cfg ? cfg.__requireLogin !== false : false;
+  w.AUTH_MODE = cfg ? (cfg.__authMode || 'login') : undefined;
 
   w.eval(dsJs);
   w.eval(appJs);
@@ -145,7 +145,7 @@ async function main() {
   // ==========================================================
   sec('3. 두 명 동시 접속 - 실시간 반영');
   const fbB = makeFirebase(server, { enforceAuth: true, startSignedIn: true });
-  const B = await makeClient('B', fbB, Object.assign({}, CLOUD_CFG, { __requireLogin: false }));
+  const B = await makeClient('B', fbB, Object.assign({}, CLOUD_CFG, { __authMode: 'none' }));
 
   check('B도 클라우드 모드', B.w.DataStore.mode === 'cloud');
   check('B가 A의 팀원 데이터를 즉시 수신', B.w.DataStore.data.members.length === 6,
@@ -304,7 +304,7 @@ async function main() {
   sec('8. TEAM_ID 로 파트 분리');
   const fbC = makeFirebase(server, { enforceAuth: false, startSignedIn: true });
   const C = await makeClient('C', fbC,
-    Object.assign({}, CLOUD_CFG, { __requireLogin: false }), 'other-part');
+    Object.assign({}, CLOUD_CFG, { __authMode: 'none' }), 'other-part');
   check('다른 TEAM_ID는 데이터가 분리됨 (팀원 재시드)',
     getPath(server.data, 'teams/other-part/members') !== null);
   check('원래 팀 데이터는 그대로',
@@ -313,11 +313,70 @@ async function main() {
   check('원래 팀의 공지도 유지',
     Object.keys(getPath(server.data, 'teams/packaging-tech/notices') || {}).length === 1);
 
+  // ==========================================================
+  sec('9. 익명 인증 모드 (로그인 화면 없이 링크만 공유)');
+  const srvA = createFakeServer();
+  const fbAnon1 = makeFirebase(srvA, { enforceAuth: true });
+  const N1 = await makeClient('anon1', fbAnon1,
+    Object.assign({}, CLOUD_CFG, { __authMode: 'anonymous' }));
+
+  check('로그인 화면이 뜨지 않음', N1.D.getElementById('modal-login').hidden === true);
+  check('자동 인증되어 online', N1.w.DataStore.status === 'online', N1.w.DataStore.status);
+  check('상태 표시 = 실시간 공유 중',
+    N1.D.getElementById('conn-status').textContent.includes('실시간'),
+    N1.D.getElementById('conn-status').textContent);
+  check('익명 사용자로 인증됨', !!N1.w.DataStore.user && N1.w.DataStore.user.isAnonymous === true);
+  check('로그아웃 버튼 숨김(익명 모드)', N1.D.getElementById('btn-logout').hidden === true);
+  check('기본 팀원이 서버에 시드됨',
+    Object.keys(getPath(srvA.data, 'teams/packaging-tech/members') || {}).length === 6,
+    'got=' + Object.keys(getPath(srvA.data, 'teams/packaging-tech/members') || {}).length);
+  check('주간표 6행 렌더', N1.D.querySelectorAll('#sch-body tr').length === 6);
+
+  // 두 번째 방문자도 로그인 없이 같은 데이터
+  const fbAnon2 = makeFirebase(srvA, { enforceAuth: true });
+  const N2 = await makeClient('anon2', fbAnon2,
+    Object.assign({}, CLOUD_CFG, { __authMode: 'anonymous' }));
+  check('두번째 접속자도 로그인 없이 진입', N2.D.getElementById('modal-login').hidden === true);
+  check('두번째 접속자가 기존 데이터 수신', N2.w.DataStore.data.members.length === 6,
+    'got=' + N2.w.DataStore.data.members.length);
+
+  // 익명 모드에서도 실시간 전파
+  N1.nav('week');
+  N2.nav('week');
+  N1.click('#sch-body td.w-att');
+  N1.click('.sopt[data-status="교육"]');
+  N1.click('#btn-status-save');
+  await tick();
+  check('★ 익명 모드에서도 실시간 전파',
+    N2.D.querySelector('#sch-body .badge.b-edu') !== null);
+
+  N2.click('#btn-add-todo');
+  N2.D.getElementById('td-title').value = '익명 모드 업무';
+  click2(N2);
+  await tick();
+  check('★ 반대 방향 전파도 정상',
+    N1.w.DataStore.data.todos.some(t => t.title === '익명 모드 업무'));
+
+  // ==========================================================
+  sec('10. 익명 로그인 미설정 시 안내');
+  const srvB = createFakeServer();
+  const fbNoAnon = makeFirebase(srvB, { enforceAuth: true, anonymousDisabled: true });
+  const NB = await makeClient('anon-off', fbNoAnon,
+    Object.assign({}, CLOUD_CFG, { __authMode: 'anonymous' }));
+  check('상태 = error', NB.w.DataStore.status === 'error', NB.w.DataStore.status);
+  check('설정 안내 메시지 노출',
+    NB.w.DataStore.statusMessage.includes('익명 로그인'),
+    NB.w.DataStore.statusMessage);
+  check('무한 재시도하지 않음', NB.w.DataStore._anonTried === true);
+
   console.log('\n' + '='.repeat(52));
   console.log(fail === 0 ? `동기화 테스트 전체 통과 ✅ (${pass}개)` : `${fail}개 실패 ❌ (통과 ${pass}개)`);
   console.log('='.repeat(52));
   process.exit(fail === 0 ? 0 : 1);
 }
+
+/** Todo 모달 저장 (담당자 기본 선택 사용) */
+function click2(c) { c.click('#btn-todo-save'); }
 
 main().catch(e => {
   console.error('\n테스트 실행 오류:', e && e.stack ? e.stack : e);

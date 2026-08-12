@@ -97,6 +97,16 @@ function makeFirebase(server, opts) {
     auth() {
       return {
         onAuthStateChanged(cb) { authCbs.push(cb); cb(currentUser); return () => {}; },
+        signInAnonymously() {
+          if (opts.anonymousDisabled) {
+            const e = new Error('admin-restricted-operation');
+            e.code = 'auth/admin-restricted-operation';
+            return Promise.reject(e);
+          }
+          currentUser = { uid: 'anon1', isAnonymous: true };
+          authCbs.forEach(c => c(currentUser));
+          return Promise.resolve({ user: currentUser });
+        },
         signInWithEmailAndPassword(em, pw) {
           if (authUsers[em] && authUsers[em] === pw) {
             currentUser = { uid: 'u1', email: em };
