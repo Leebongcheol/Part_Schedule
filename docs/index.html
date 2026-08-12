@@ -23,11 +23,13 @@
             <button class="nav-btn" data-view="guide"><span>📖</span>사용 가이드</button>
         </nav>
         <div class="nav-bottom">
+            <div class="conn off" id="conn-status"><span class="conn-ico">⚪</span><span class="conn-tx">확인 중...</span></div>
             <button class="nav-btn" id="btn-backup"><span>💾</span>백업 저장</button>
             <label class="nav-btn"><span>📂</span>백업 불러오기
                 <input type="file" accept=".json" id="btn-restore" hidden>
             </label>
             <button class="nav-btn" id="btn-print"><span>🖨️</span>인쇄</button>
+            <button class="nav-btn" id="btn-logout"><span>🚪</span>로그아웃</button>
         </div>
     </aside>
 
@@ -39,6 +41,10 @@
 
     <!-- ===== Main ===== -->
     <main class="main">
+        <div class="off-banner" id="offline-banner" hidden>
+            ⚪ <b>오프라인 모드</b> — 입력한 내용이 <b>이 브라우저에만</b> 저장되며 다른 팀원에게 공유되지 않습니다.
+            공유가 필요하면 <code>docs/SETUP-FIREBASE.md</code> 안내에 따라 Firebase를 연결하세요.
+        </div>
 
         <!-- ===== 주간 스케줄 (근태 + To Do 완전 통합) ===== -->
         <section class="view" id="view-week">
@@ -260,12 +266,19 @@
                     </ul>
                 </div>
                 <div class="gblock warn">
-                    <h3>⚠️ 데이터 저장 위치 (중요)</h3>
+                    <h3>💾 데이터 저장 위치</h3>
                     <ul>
-                        <li>데이터는 <b>접속한 브라우저에만</b> 저장됩니다 (localStorage)</li>
-                        <li>따라서 <b>다른 팀원에게 자동 공유되지 않습니다</b></li>
-                        <li>공유가 필요하면 좌측 <b>💾 백업 저장</b> → 파일 전달 → 상대방이 <b>📂 백업 불러오기</b></li>
-                        <li>브라우저 캐시 삭제 시 데이터가 사라지므로 <b>주기적 백업 권장</b></li>
+                        <li>좌측 하단 상태 표시로 현재 저장 방식을 확인할 수 있습니다
+                            <ul>
+                                <li><b>🟢 실시간 공유 중</b> — 파트원 전체가 같은 데이터를 봅니다. 다른 사람이 입력하면 새로고침 없이 내 화면도 바뀝니다.</li>
+                                <li><b>⚪ 이 브라우저에만 저장</b> — 공유되지 않습니다. Firebase 연결이 필요합니다.</li>
+                                <li><b>🟡 연결 중 / 🔴 연결 오류</b> — 네트워크 또는 권한 문제입니다.</li>
+                            </ul>
+                        </li>
+                        <li>실시간 공유 모드에서도 마지막 데이터가 브라우저에 캐시되어, 네트워크가 끊겨도 화면은 유지됩니다.</li>
+                        <li><b>💾 백업 저장</b>으로 주기적으로 JSON 파일을 내려두는 것을 권장합니다.</li>
+                        <li>⚠️ <b>백업 불러오기</b>는 공유 모드에서 <b>파트 전체 데이터를 덮어씁니다.</b> 다른 팀원의 최신 입력이 사라질 수 있으니 주의하세요.</li>
+                        <li>연결 설정 방법은 저장소의 <code>docs/SETUP-FIREBASE.md</code> 문서를 참고하세요.</li>
                     </ul>
                 </div>
             </div>
@@ -384,9 +397,30 @@
     </div>
 </div>
 
+<!-- ===== Modal: 로그인 (클라우드 모드 전용) ===== -->
+<div class="mask login-mask" id="modal-login" hidden>
+    <div class="modal sm">
+        <div class="mhead"><h3>🔒 파트 스케줄 로그인</h3></div>
+        <div class="mbody">
+            <p class="login-desc">파트 공유 계정으로 로그인하세요.<br>계정은 파트장에게 문의하세요.</p>
+            <div class="fg"><label>이메일</label><input type="email" class="inp" id="login-email" placeholder="team@example.com" autocomplete="username"></div>
+            <div class="fg"><label>비밀번호</label><input type="password" class="inp" id="login-pw" placeholder="비밀번호" autocomplete="current-password"></div>
+            <p class="login-err" id="login-err" hidden></p>
+        </div>
+        <div class="mfoot"><button class="pbtn" id="btn-login">로그인</button></div>
+    </div>
+</div>
+
 <div class="ovl" id="ovl"></div>
 <div class="toast" id="toast" hidden></div>
 
+<!-- Firebase SDK (설정이 비어 있으면 사용되지 않음) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script src="firebase-config.js"></script>
+<script src="datastore.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -52,29 +52,39 @@ function toast(msg) {
   el._t = setTimeout(() => { el.hidden = true; }, 2200);
 }
 function $(id) { return document.getElementById(id); }
-
-// ===== Persistence =====
-function load() {
-  try {
-    members = JSON.parse(localStorage.getItem(K.m)) || [...DEFAULT_MEMBERS];
-    schedules = JSON.parse(localStorage.getItem(K.s)) || [];
-    todos = JSON.parse(localStorage.getItem(K.t)) || [];
-    notices = JSON.parse(localStorage.getItem(K.n)) || [];
-  } catch (e) {
-    members = [...DEFAULT_MEMBERS]; schedules = []; todos = []; notices = [];
-  }
-  save();
+/** 공지는 항상 최신순 (DB에서 오는 순서는 보장되지 않음) */
+function noticesSorted() {
+  return notices.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 }
-function save() {
-  localStorage.setItem(K.m, JSON.stringify(members));
-  localStorage.setItem(K.s, JSON.stringify(schedules));
-  localStorage.setItem(K.t, JSON.stringify(todos));
-  localStorage.setItem(K.n, JSON.stringify(notices));
+
+// ===== Persistence (DataStore: local 또는 Firebase 실시간) =====
+// 읽기 코드가 그대로 동작하도록 전역 배열을 DataStore 배열에 다시 연결한다.
+function syncRefs() {
+  members = DataStore.data.members;
+  schedules = DataStore.data.schedules;
+  todos = DataStore.data.todos;
+  notices = DataStore.data.notices;
+}
+
+function load() {
+  DataStore.onChange = () => { syncRefs(); renderAll(); };
+  DataStore.onStatus = (s, msg) => renderConnStatus(s, msg);
+  // 데이터가 처음 준비된 뒤(클라우드는 로그인·최초 수신 후) 비어 있으면 기본 팀원 시드
+  DataStore.onReady = () => {
+    syncRefs();
+    if (members.length === 0) {
+      DataStore.seedIfEmpty('members', DEFAULT_MEMBERS.map(m => ({ ...m })))
+        .then(() => { syncRefs(); renderAll(); });
+    } else {
+      renderAll();
+    }
+  };
+  return DataStore.init().then(() => syncRefs());
 }
 
 // ===== Backup / Restore =====
 function backup() {
-  const data = { version: 2, exportedAt: new Date().toISOString(), members, schedules, todos, notices };
+  const data = { version: 3, exportedAt: new Date().toISOString(), members, schedules, todos, notices };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -91,10 +101,13 @@ function restore(file) {
     try {
       const d = JSON.parse(e.target.result);
       if (!d.members) throw new Error('형식 오류');
-      if (!confirm('현재 데이터를 백업 파일 내용으로 덮어씁니다. 계속할까요?')) return;
-      members = d.members || []; schedules = d.schedules || [];
-      todos = d.todos || []; notices = d.notices || [];
-      save(); renderAll(); toast('백업을 불러왔습니다 ✅');
+      const warn = DataStore.isCloud()
+        ? '⚠️ 파트 공유 데이터 전체를 백업 파일로 덮어씁니다.\n다른 팀원의 최신 입력도 사라집니다. 계속할까요?'
+        : '현재 데이터를 백업 파일 내용으로 덮어씁니다. 계속할까요?';
+      if (!confirm(warn)) return;
+      DataStore.replaceAll(d).then(() => {
+        syncRefs(); renderAll(); toast('백업을 불러왔습니다 ✅');
+      });
     } catch (err) { alert('불러오기 실패: ' + err.message); }
   };
   r.readAsText(file);
@@ -103,37 +116,50 @@ function restore(file) {
 // ===== Schedule =====
 function getSch(mid, date) { return schedules.find(s => s.memberId === mid && s.date === date); }
 function setSch(mid, date, status, note) {
-  const i = schedules.findIndex(s => s.memberId === mid && s.date === date);
-  if (i >= 0) {
-    if (status) { schedules[i].status = status; schedules[i].note = note || ''; }
-    else schedules.splice(i, 1);
-  } else if (status) {
-    schedules.push({ id: uid(), memberId: mid, date, status, note: note || '' });
+  const cur = getSch(mid, date);
+  if (!status) {
+    if (cur) DataStore.remove('schedules', cur.id);
+    return;
   }
-  save();
+  const rec = cur
+    ? { ...cur, status, note: note || '' }
+    : { id: uid(), memberId: mid, date, status, note: note || '' };
+  DataStore.put('schedules', rec);
 }
 
 // ===== Member =====
-function addMember(o) { members.push({ id: uid(), ...o }); save(); }
-function updMember(id, patch) { const m = members.find(x => x.id === id); if (m) { Object.assign(m, patch); save(); } }
+function addMember(o) { DataStore.put('members', { id: uid(), ...o }); }
+function updMember(id, patch) {
+  const m = members.find(x => x.id === id);
+  if (m) DataStore.put('members', { ...m, ...patch });
+}
 function delMember(id) {
   const m = members.find(x => x.id === id);
   if (!confirm(`'${m ? m.name : ''}' 팀원을 삭제합니다.\n관련 일정과 할 일도 함께 삭제됩니다. 계속할까요?`)) return;
-  members = members.filter(x => x.id !== id);
-  schedules = schedules.filter(x => x.memberId !== id);
-  todos = todos.filter(x => x.assigneeId !== id);
-  save(); renderAll(); toast('팀원이 삭제되었습니다');
+  Promise.all([
+    DataStore.removeWhere('schedules', x => x.memberId === id),
+    DataStore.removeWhere('todos', x => x.assigneeId === id)
+  ]).then(() => DataStore.remove('members', id))
+    .then(() => { syncRefs(); renderAll(); toast('팀원이 삭제되었습니다'); });
 }
 
 // ===== Todo =====
-function addTodo(o) { todos.push({ id: uid(), done: false, createdAt: new Date().toISOString(), ...o }); save(); }
-function updTodo(id, patch) { const t = todos.find(x => x.id === id); if (t) { Object.assign(t, patch); save(); } }
-function delTodo(id) { todos = todos.filter(x => x.id !== id); save(); }
+function addTodo(o) {
+  DataStore.put('todos', { id: uid(), done: false, createdAt: new Date().toISOString(), ...o });
+}
+function updTodo(id, patch) {
+  const t = todos.find(x => x.id === id);
+  if (t) DataStore.put('todos', { ...t, ...patch });
+}
+function delTodo(id) { DataStore.remove('todos', id); }
 
 // ===== Notice =====
-function addNotice(o) { notices.unshift({ id: uid(), date: new Date().toISOString(), ...o }); save(); }
-function updNotice(id, patch) { const n = notices.find(x => x.id === id); if (n) { Object.assign(n, patch); save(); } }
-function delNotice(id) { notices = notices.filter(x => x.id !== id); save(); }
+function addNotice(o) { DataStore.put('notices', { id: uid(), date: new Date().toISOString(), ...o }); }
+function updNotice(id, patch) {
+  const n = notices.find(x => x.id === id);
+  if (n) DataStore.put('notices', { ...n, ...patch });
+}
+function delNotice(id) { DataStore.remove('notices', id); }
 
 // ===== Workload =====
 function stat(mid) {
@@ -406,7 +432,7 @@ function renderDashboard() {
   $('dash-alerts').innerHTML = aHtml || '<div class="none-txt">특이사항 없습니다 ✅</div>';
 
   // Recent notices
-  $('dash-notices').innerHTML = notices.slice(0, 3).map(n => {
+  $('dash-notices').innerHTML = noticesSorted().slice(0, 3).map(n => {
     const d = new Date(n.date);
     return `<div class="mini-notice"><b>${esc(n.title)}</b><span>${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} · ${esc(n.author||'-')}</span></div>`;
   }).join('') || '<div class="none-txt">공지 없음</div>';
@@ -494,7 +520,7 @@ function refreshTasksModal() {
 // ===== Render: Notice =====
 function renderNotices() {
   const icon = { '공지': '📢', '회의록': '📝', '메모': '💡' };
-  $('notice-list').innerHTML = notices.map(n => {
+  $('notice-list').innerHTML = noticesSorted().map(n => {
     const d = new Date(n.date);
     const ds = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     return `<div class="ncard type-${n.type||'공지'}">
@@ -563,6 +589,51 @@ function startInlineEdit(td) {
   });
   if (field === 'position') el.addEventListener('change', commit);
 }
+
+// ===== 연결 상태 표시 =====
+const CONN_UI = {
+  online:          { cls: 'ok',   ico: '🟢', txt: '실시간 공유 중' },
+  connecting:      { cls: 'wait', ico: '🟡', txt: '연결 중...' },
+  offline:         { cls: 'off',  ico: '⚪', txt: '이 브라우저에만 저장' },
+  'auth-required': { cls: 'warn', ico: '🔒', txt: '로그인 필요' },
+  error:           { cls: 'err',  ico: '🔴', txt: '연결 오류' }
+};
+
+function renderConnStatus(s, msg) {
+  const el = $('conn-status');
+  if (!el) return;
+  const u = CONN_UI[s] || CONN_UI.offline;
+  el.className = 'conn ' + u.cls;
+  el.innerHTML = `<span class="conn-ico">${u.ico}</span><span class="conn-tx">${u.txt}</span>`;
+  el.title = msg || u.txt;
+
+  // 로그인 게이트
+  const gate = $('modal-login');
+  if (gate) gate.hidden = (s !== 'auth-required');
+
+  // 오프라인 모드 안내 배너
+  const banner = $('offline-banner');
+  if (banner) banner.hidden = DataStore.isCloud();
+}
+
+function doLogin() {
+  const em = $('login-email').value.trim();
+  const pw = $('login-pw').value;
+  const err = $('login-err');
+  if (!em || !pw) { err.textContent = '이메일과 비밀번호를 입력하세요.'; err.hidden = false; return; }
+  err.hidden = true;
+  $('btn-login').disabled = true;
+  $('btn-login').textContent = '로그인 중...';
+  DataStore.signIn(em, pw)
+    .then(() => { $('login-pw').value = ''; toast('로그인되었습니다'); })
+    .catch(e => {
+      err.textContent = '로그인 실패: ' + (e && e.code ? e.code : (e.message || '알 수 없는 오류'));
+      err.hidden = false;
+    })
+    .then(() => { $('btn-login').disabled = false; $('btn-login').textContent = '로그인'; });
+}
+
+// ===== 연결 상태 표시 끝 =====
 
 // ===== Render All =====
 function renderAll() {
@@ -762,11 +833,14 @@ function bind() {
 
   // status modal
   $('btn-status-save').addEventListener('click', () => {
+    // 대상 셀 정보가 없으면 저장하지 않는다 (잘못된 레코드 생성 방지)
+    if (!sCtx.mid || !sCtx.date) { closeModal('modal-status'); return; }
     if (!sCtx.sel) { alert('상태를 선택해주세요.'); return; }
     setSch(sCtx.mid, sCtx.date, sCtx.sel, $('status-note').value.trim());
     closeModal('modal-status'); renderAll(); toast('저장되었습니다');
   });
   $('btn-status-clear').addEventListener('click', () => {
+    if (!sCtx.mid || !sCtx.date) { closeModal('modal-status'); return; }
     setSch(sCtx.mid, sCtx.date, null, '');
     closeModal('modal-status'); renderAll(); toast('삭제되었습니다');
   });
@@ -850,9 +924,23 @@ function bind() {
       renderAll(); toast('색상이 변경되었습니다');
     }
   });
+
+  // 로그인
+  if ($('btn-login')) {
+    $('btn-login').addEventListener('click', doLogin);
+    $('login-pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    $('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') $('login-pw').focus(); });
+  }
+  if ($('btn-logout')) {
+    $('btn-logout').addEventListener('click', () => {
+      if (confirm('로그아웃 하시겠습니까?')) DataStore.signOut();
+    });
+  }
 }
 
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', () => {
-  load(); bind(); renderAll();
+  bind();
+  renderConnStatus(DataStore.hasCloudConfig() ? 'connecting' : 'offline', '');
+  load().then(() => { syncRefs(); renderAll(); });
 });

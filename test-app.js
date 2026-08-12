@@ -8,6 +8,7 @@ const { JSDOM } = require('jsdom');
 
 const html = fs.readFileSync(path.join('docs', 'index.html'), 'utf8');
 const appJs = fs.readFileSync(path.join('docs', 'app.js'), 'utf8');
+const dsJs = fs.readFileSync(path.join('docs', 'datastore.js'), 'utf8');
 const css = fs.readFileSync(path.join('docs', 'style.css'), 'utf8');
 
 let failures = 0, passes = 0;
@@ -48,6 +49,9 @@ if (!window.Element.prototype.closest) {
   };
 }
 
+const tick = (ms = 5) => new Promise(r => setTimeout(r, ms));
+
+window.eval(dsJs);
 window.eval(appJs);
 window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
 const D = window.document;
@@ -55,6 +59,14 @@ const click = el => el.dispatchEvent(new window.MouseEvent('click', { bubbles: t
 const nav = v => click(D.querySelector(`.nav-btn[data-view="${v}"]`));
 const memberIds = () => JSON.parse(store['ps2_members']).map(m => m.id);
 const todosOf = () => JSON.parse(store['ps2_todos']);
+
+async function main() {
+await tick(15);   // DataStore 초기화 + 기본 팀원 시드 완료 대기
+
+sec('0. 저장 모드 (설정 없으면 오프라인)');
+check('오프라인(local) 모드', window.DataStore.mode === 'local', window.DataStore.mode);
+check('오프라인 배너 표시', D.getElementById('offline-banner').hidden === false);
+check('로그인 모달 숨김', D.getElementById('modal-login').hidden === true);
 
 sec('1. 메뉴 순서 (공지 > 월간 > 주간 > 대시보드 > 팀원 > 가이드)');
 const navOrder = [...D.querySelectorAll('.nav .nav-btn')].map(b => b.dataset.view);
@@ -399,16 +411,22 @@ store['ps2_members'] = '[]'; store['ps2_todos'] = '[]';
 const ri = D.getElementById('btn-restore');
 Object.defineProperty(ri, 'files', { value: [{ name: 'b.json' }], configurable: true });
 ri.dispatchEvent(new window.Event('change', { bubbles: true }));
-setTimeout(() => {
-  check('팀원 수 복원', JSON.parse(store['ps2_members']).length === nM);
-  check('할 일 수 복원', JSON.parse(store['ps2_todos']).length === nT);
-  nav('members');
-  check('화면 재렌더', D.querySelectorAll('#member-body tr').length === nM);
+await tick(30);
+check('팀원 수 복원', JSON.parse(store['ps2_members']).length === nM,
+  'got=' + JSON.parse(store['ps2_members']).length + ' want=' + nM);
+check('할 일 수 복원', JSON.parse(store['ps2_todos']).length === nT);
+nav('members');
+check('화면 재렌더', D.querySelectorAll('#member-body tr').length === nM);
 
-  console.log('\n' + '='.repeat(50));
-  console.log(failures === 0
-    ? `모든 테스트 통과 ✅  (${passes}개)`
-    : `${failures}개 실패 ❌  (통과 ${passes}개)`);
-  console.log('='.repeat(50));
-  process.exit(failures === 0 ? 0 : 1);
-}, 30);
+console.log('\n' + '='.repeat(50));
+console.log(failures === 0
+  ? `모든 테스트 통과 ✅  (${passes}개)`
+  : `${failures}개 실패 ❌  (통과 ${passes}개)`);
+console.log('='.repeat(50));
+process.exit(failures === 0 ? 0 : 1);
+}
+
+main().catch(e => {
+  console.error('\n테스트 실행 오류:', e && e.stack ? e.stack : e);
+  process.exit(1);
+});
