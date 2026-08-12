@@ -24,12 +24,6 @@
         </nav>
         <div class="nav-bottom">
             <div class="conn off" id="conn-status"><span class="conn-ico">⚪</span><span class="conn-tx">확인 중...</span></div>
-            <button class="nav-btn" id="btn-backup"><span>💾</span>백업 저장</button>
-            <label class="nav-btn"><span>📂</span>백업 불러오기
-                <input type="file" accept=".json" id="btn-restore" hidden>
-            </label>
-            <button class="nav-btn" id="btn-print"><span>🖨️</span>인쇄</button>
-            <button class="nav-btn" id="btn-logout" hidden><span>🚪</span>로그아웃</button>
         </div>
     </aside>
 
@@ -277,8 +271,9 @@
                         </li>
                         <li>실시간 공유 모드에서도 마지막 데이터가 브라우저에 캐시되어, 네트워크가 끊겨도 화면은 유지됩니다.</li>
                         <li>공유 모드는 <b>로그인 없이</b> 링크만으로 사용하도록 설정되어 있습니다.</li>
-                        <li><b>💾 백업 저장</b>으로 주기적으로 JSON 파일을 내려두는 것을 권장합니다.</li>
-                        <li>⚠️ <b>백업 불러오기</b>는 공유 모드에서 <b>파트 전체 데이터를 덮어씁니다.</b> 다른 팀원의 최신 입력이 사라질 수 있으니 주의하세요.</li>
+                        <li>데이터 백업이 필요하면 <b>Firebase 콘솔 → Realtime Database → 데이터</b> 에서
+                            우측 ⋮ 메뉴의 <b>JSON 내보내기</b>를 사용하세요. (파트장 권한 필요)</li>
+                        <li>⚠️ 삭제한 데이터는 되돌릴 수 없습니다. 팀원·업무 삭제 시 확인 후 진행하세요.</li>
                         <li>연결 설정 방법은 저장소의 <code>docs/SETUP-FIREBASE.md</code> 문서를 참고하세요.</li>
                     </ul>
                 </div>

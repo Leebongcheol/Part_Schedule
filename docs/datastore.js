@@ -251,27 +251,6 @@
       return Promise.all(doomed.map(r => this.remove(col, r.id)));
     },
 
-    /** 백업 복원 - 전체 교체 */
-    replaceAll(payload) {
-      COLLECTIONS.forEach(c => {
-        if (Array.isArray(payload[c])) this.data[c] = payload[c];
-      });
-      if (this.isCloud() && this._db && this.status !== 'auth-required') {
-        const upd = {};
-        const base = this._basePath();
-        COLLECTIONS.forEach(c => {
-          const obj = {};
-          this.data[c].forEach(r => { if (r && r.id) obj[r.id] = r; });
-          upd[base + '/' + c] = obj;
-        });
-        return this._db.ref().update(upd)
-          .catch(e => { console.warn('[DataStore] 복원 실패:', e); });
-      }
-      this.saveLocal();
-      this._emit();
-      return Promise.resolve();
-    },
-
     /** 초기 시드 데이터 주입 (비어 있을 때만) */
     seedIfEmpty(col, records) {
       if (this.data[col].length > 0) return Promise.resolve(false);

@@ -395,28 +395,28 @@ nav('week');
 addTodoUI({ title: '<script>alert(1)</script>', mid: memberIds()[0] });
 check('할 일 제목도 이스케이프', D.querySelector('#sch-body script') === null);
 
-sec('16. 백업/복원 왕복');
-const payload = JSON.stringify({
-  version: 2, exportedAt: new Date().toISOString(),
-  members: JSON.parse(store['ps2_members']),
-  schedules: JSON.parse(store['ps2_sch']),
-  todos: JSON.parse(store['ps2_todos']),
-  notices: JSON.parse(store['ps2_notices'])
-});
-const nM = JSON.parse(store['ps2_members']).length;
-const nT = JSON.parse(store['ps2_todos']).length;
-class FakeReader { readAsText() { setTimeout(() => this.onload({ target: { result: payload } }), 0); } }
-window.FileReader = FakeReader;
-store['ps2_members'] = '[]'; store['ps2_todos'] = '[]';
-const ri = D.getElementById('btn-restore');
-Object.defineProperty(ri, 'files', { value: [{ name: 'b.json' }], configurable: true });
-ri.dispatchEvent(new window.Event('change', { bubbles: true }));
-await tick(30);
-check('팀원 수 복원', JSON.parse(store['ps2_members']).length === nM,
-  'got=' + JSON.parse(store['ps2_members']).length + ' want=' + nM);
-check('할 일 수 복원', JSON.parse(store['ps2_todos']).length === nT);
-nav('members');
-check('화면 재렌더', D.querySelectorAll('#member-body tr').length === nM);
+sec('16. 불필요 기능 제거 확인 (백업/복원/인쇄/로그아웃)');
+check('백업 저장 버튼 없음', D.getElementById('btn-backup') === null);
+check('백업 불러오기 입력 없음', D.getElementById('btn-restore') === null);
+check('인쇄 버튼 없음', D.getElementById('btn-print') === null);
+check('로그아웃 버튼 없음', D.getElementById('btn-logout') === null);
+check('사이드바 하단에 연결 상태만 남음',
+  D.querySelectorAll('.nav-bottom .nav-btn').length === 0,
+  'buttons=' + D.querySelectorAll('.nav-bottom .nav-btn').length);
+check('연결 상태 표시는 유지', D.getElementById('conn-status') !== null);
+check('DataStore.replaceAll 제거됨', typeof window.DataStore.replaceAll === 'undefined');
+check('파일 선택 input이 사이드바에 없음',
+  D.querySelector('.nav-bottom input[type="file"]') === null);
+// 인쇄 스타일시트는 남겨둠 (Ctrl+P 로 여전히 깔끔하게 출력됨)
+check('인쇄용 CSS는 유지 (Ctrl+P 대응)', /@media print/.test(css));
+
+sec('17. 남은 메뉴 무결성');
+const navAfter = [...D.querySelectorAll('.nav .nav-btn')].map(b => b.dataset.view);
+check('메뉴 6개 그대로', navAfter.length === 6, JSON.stringify(navAfter));
+for (const v of navAfter) {
+  nav(v);
+  check(`${v} 뷰 정상 전환`, D.getElementById('view-' + v).classList.contains('active'));
+}
 
 console.log('\n' + '='.repeat(50));
 console.log(failures === 0

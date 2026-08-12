@@ -294,10 +294,10 @@ async function main() {
   check('재연결 시 online 복귀', A.w.DataStore.status === 'online', A.w.DataStore.status);
 
   // ==========================================================
-  sec('7. 로그아웃');
-  await A.w.DataStore.signOut();
+  sec('7. 세션 만료 시 재인증 게이트 (login 모드)');
+  await A.w.DataStore.signOut();   // UI 버튼은 없음 - 세션 만료 상황을 API로 재현
   await tick(15);
-  check('로그아웃 후 로그인 모달 재표시', A.D.getElementById('modal-login').hidden === false);
+  check('세션 끊기면 로그인 모달 재표시', A.D.getElementById('modal-login').hidden === false);
   check('상태 = auth-required', A.w.DataStore.status === 'auth-required', A.w.DataStore.status);
 
   // ==========================================================
@@ -326,7 +326,11 @@ async function main() {
     N1.D.getElementById('conn-status').textContent.includes('실시간'),
     N1.D.getElementById('conn-status').textContent);
   check('익명 사용자로 인증됨', !!N1.w.DataStore.user && N1.w.DataStore.user.isAnonymous === true);
-  check('로그아웃 버튼 숨김(익명 모드)', N1.D.getElementById('btn-logout').hidden === true);
+  check('로그아웃 버튼 자체가 제거됨', N1.D.getElementById('btn-logout') === null);
+  check('백업/인쇄 버튼도 없음',
+    N1.D.getElementById('btn-backup') === null &&
+    N1.D.getElementById('btn-restore') === null &&
+    N1.D.getElementById('btn-print') === null);
   check('기본 팀원이 서버에 시드됨',
     Object.keys(getPath(srvA.data, 'teams/packaging-tech/members') || {}).length === 6,
     'got=' + Object.keys(getPath(srvA.data, 'teams/packaging-tech/members') || {}).length);

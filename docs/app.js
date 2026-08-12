@@ -82,37 +82,6 @@ function load() {
   return DataStore.init().then(() => syncRefs());
 }
 
-// ===== Backup / Restore =====
-function backup() {
-  const data = { version: 3, exportedAt: new Date().toISOString(), members, schedules, todos, notices };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `파트스케줄_백업_${today()}.json`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('백업 파일이 저장되었습니다 💾');
-}
-
-function restore(file) {
-  const r = new FileReader();
-  r.onload = e => {
-    try {
-      const d = JSON.parse(e.target.result);
-      if (!d.members) throw new Error('형식 오류');
-      const warn = DataStore.isCloud()
-        ? '⚠️ 파트 공유 데이터 전체를 백업 파일로 덮어씁니다.\n다른 팀원의 최신 입력도 사라집니다. 계속할까요?'
-        : '현재 데이터를 백업 파일 내용으로 덮어씁니다. 계속할까요?';
-      if (!confirm(warn)) return;
-      DataStore.replaceAll(d).then(() => {
-        syncRefs(); renderAll(); toast('백업을 불러왔습니다 ✅');
-      });
-    } catch (err) { alert('불러오기 실패: ' + err.message); }
-  };
-  r.readAsText(file);
-}
-
 // ===== Schedule =====
 function getSch(mid, date) { return schedules.find(s => s.memberId === mid && s.date === date); }
 function setSch(mid, date, status, note) {
@@ -607,16 +576,9 @@ function renderConnStatus(s, msg) {
   el.innerHTML = `<span class="conn-ico">${u.ico}</span><span class="conn-tx">${u.txt}</span>`;
   el.title = msg || u.txt;
 
-  // 로그인 게이트 (login 모드에서만 사용)
+  // 로그인 게이트 (AUTH_MODE='login' 에서만 사용)
   const gate = $('modal-login');
   if (gate) gate.hidden = (s !== 'auth-required');
-
-  // 로그아웃 버튼은 계정 로그인 방식일 때만 노출
-  const lo = $('btn-logout');
-  if (lo) {
-    const usesLogin = DataStore.isCloud() && DataStore.authMode() === 'login';
-    lo.hidden = !usesLogin;
-  }
 
   // 오프라인 모드 안내 배너
   const banner = $('offline-banner');
@@ -786,11 +748,6 @@ function bind() {
     $('sidebar').classList.add('open'); $('ovl').classList.add('open');
   });
   $('ovl').addEventListener('click', closeSidebar);
-  $('btn-print').addEventListener('click', () => window.print());
-  $('btn-backup').addEventListener('click', backup);
-  $('btn-restore').addEventListener('change', e => {
-    if (e.target.files[0]) { restore(e.target.files[0]); e.target.value = ''; }
-  });
 
   // modal close via data-close
   document.querySelectorAll('[data-close]').forEach(b =>
@@ -932,16 +889,11 @@ function bind() {
     }
   });
 
-  // 로그인
+  // 로그인 (AUTH_MODE='login' 일 때만 사용)
   if ($('btn-login')) {
     $('btn-login').addEventListener('click', doLogin);
     $('login-pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     $('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') $('login-pw').focus(); });
-  }
-  if ($('btn-logout')) {
-    $('btn-logout').addEventListener('click', () => {
-      if (confirm('로그아웃 하시겠습니까?')) DataStore.signOut();
-    });
   }
 }
 
