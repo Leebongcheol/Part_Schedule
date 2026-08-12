@@ -158,6 +158,68 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
   padding-bottom:5px;border-bottom:1px solid var(--g200)}
 .tk-group-h:first-child{margin-top:0}
 
+/* --- 출근 녹색 원 --- */
+.work-dot{display:inline-block;width:14px;height:14px;border-radius:50%;
+  background:var(--suc);box-shadow:0 0 0 3px rgba(22,163,74,.16);vertical-align:middle}
+.sch-table td.clk .work-dot{width:15px;height:15px}
+.lg-work{display:inline-flex;align-items:center;gap:6px;font-size:.875rem;color:var(--g600);font-weight:500}
+
+/* --- 섹션 분리 --- */
+.sec-split{margin-top:30px;padding-top:24px;border-top:2px dashed var(--g200)}
+.sub-head{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.sub-head h3{font-size:1.15rem;font-weight:700}
+.dash-sec{margin-bottom:28px}
+.sec-h{font-size:1.0625rem;font-weight:700;color:var(--g800);margin-bottom:12px;
+  padding:8px 14px;background:var(--g100);border-left:4px solid var(--pri);border-radius:0 6px 6px 0}
+
+/* --- 월간 달력 --- */
+.mon-table{width:100%;border-collapse:collapse;background:#fff;box-shadow:var(--sh);
+  border-radius:var(--rad);overflow:hidden;table-layout:fixed}
+.mon-table th{padding:11px 8px;font-size:.875rem;font-weight:600;text-align:center;
+  background:var(--pri);color:#fff}
+.mon-table th.sun{background:#b91c1c}
+.mon-table th.sat{background:#1d4ed8}
+.mon-table td{border:1px solid var(--g200);vertical-align:top;height:96px;padding:5px 6px;
+  cursor:pointer;transition:background .12s;position:relative}
+.mon-table td:hover{background:#dbeafe}
+.mon-table td.other{background:var(--g50);color:var(--g300);cursor:default}
+.mon-table td.other:hover{background:var(--g50)}
+.mon-table td.wknd{background:#fef2f2}
+.mon-table td.wknd:hover{background:#fee2e2}
+.mon-table td.tday{background:#eff6ff;box-shadow:inset 0 0 0 2px var(--pri)}
+.d-num{font-size:.875rem;font-weight:700;color:var(--g600);display:block;margin-bottom:3px}
+.mon-table td.other .d-num{color:var(--g300)}
+.mon-table td.sun-c .d-num{color:#dc2626}
+.mon-table td.sat-c .d-num{color:#2563eb}
+.d-list{display:flex;flex-direction:column;gap:2px}
+.d-chip{font-size:.6875rem;font-weight:600;color:#fff;border-radius:9px;
+  padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-more{font-size:.6875rem;color:var(--pri);font-weight:700}
+
+/* --- 일자별 근태 입력 모달 --- */
+.day-row{display:flex;align-items:center;gap:12px;padding:9px 4px;
+  border-bottom:1px solid var(--g100);flex-wrap:wrap}
+.day-row:last-child{border-bottom:none}
+.day-mem{display:flex;align-items:center;gap:7px;min-width:120px;font-weight:600;font-size:.9375rem}
+.day-opts{display:flex;gap:5px;flex-wrap:wrap}
+.dopt{padding:5px 11px;border:1.5px solid var(--g200);border-radius:14px;background:#fff;
+  font-family:var(--font);font-size:.8125rem;font-weight:600;cursor:pointer;transition:all .12s}
+.dopt:hover{transform:scale(1.05)}
+.dopt.on{color:#fff}
+.dopt[data-s=""].on{background:var(--suc);border-color:var(--suc)}
+.dopt[data-s="출장"]{border-color:var(--trip)}
+.dopt[data-s="출장"].on{background:var(--trip)}
+.dopt[data-s="휴가"]{border-color:var(--vac)}
+.dopt[data-s="휴가"].on{background:var(--vac)}
+.dopt[data-s="교육"]{border-color:var(--edu)}
+.dopt[data-s="교육"].on{background:var(--edu)}
+.dopt[data-s="기타"]{border-color:var(--etc)}
+.dopt[data-s="기타"].on{background:var(--etc)}
+.day-note{flex:1;min-width:130px;padding:5px 9px;border:1px solid var(--g200);
+  border-radius:5px;font-family:var(--font);font-size:.8125rem}
+.day-note:focus{outline:none;border-color:var(--pri)}
+
 /* --- Legend --- */
 .legend{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px;
   padding:11px 15px;background:var(--g100);border-radius:7px;font-size:.875rem}
@@ -321,9 +383,14 @@ textarea.inp{resize:vertical}
   .cards{grid-template-columns:repeat(2,1fr)}
   .vlabel{min-width:120px;font-size:.875rem}
   .row2{grid-template-columns:1fr}
-  .sel-sm{margin-left:0;width:100%}
+  .sel-sm{margin-left:0}
   .vhead{flex-direction:column;align-items:flex-start}
   .vactions{width:100%}
+  .mon-table{min-width:560px}
+  .mon-table td{height:78px}
+  .day-row{flex-direction:column;align-items:flex-start;gap:7px}
+  .day-note{width:100%}
+  .sub-head{flex-direction:column;align-items:flex-start}
 }
 @media (max-width:480px){
   .cards{grid-template-columns:1fr 1fr}

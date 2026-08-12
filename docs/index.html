@@ -15,9 +15,9 @@
             <span class="brand-txt">패키징기술파트<br><b>Schedule</b></span>
         </div>
         <nav class="nav">
-            <button class="nav-btn active" data-view="calendar"><span>📆</span>주간 캘린더</button>
+            <button class="nav-btn active" data-view="week"><span>📆</span>주간 스케줄</button>
+            <button class="nav-btn" data-view="month"><span>🗓️</span>월간 근태</button>
             <button class="nav-btn" data-view="dashboard"><span>📊</span>대시보드</button>
-            <button class="nav-btn" data-view="todo"><span>✅</span>To Do</button>
             <button class="nav-btn" data-view="notice"><span>📢</span>공지사항</button>
             <button class="nav-btn" data-view="members"><span>👥</span>팀원 관리</button>
             <button class="nav-btn" data-view="guide"><span>📖</span>사용 가이드</button>
@@ -40,17 +40,18 @@
     <!-- ===== Main ===== -->
     <main class="main">
 
-        <!-- ===== Calendar ===== -->
-        <section class="view active" id="view-calendar">
+        <!-- ===== 주간 스케줄 (근태 + To Do 통합) ===== -->
+        <section class="view active" id="view-week">
             <div class="vhead">
-                <h2>📆 주간 캘린더</h2>
+                <h2>📆 주간 스케줄</h2>
                 <div class="vactions">
                     <button class="ibtn" id="btn-prev">◀</button>
-                    <button class="tbtn" id="btn-today">오늘</button>
+                    <button class="tbtn" id="btn-today">이번 주</button>
                     <span class="vlabel" id="week-label"></span>
                     <button class="ibtn" id="btn-next">▶</button>
                 </div>
             </div>
+
             <div class="twrap">
                 <table class="sch-table">
                     <thead>
@@ -69,77 +70,132 @@
             </div>
             <div class="legend">
                 <span class="lg-label">범례:</span>
+                <span class="lg-work"><span class="work-dot"></span>출근</span>
                 <span class="chip c-trip">출장</span>
                 <span class="chip c-vac">휴가</span>
                 <span class="chip c-edu">교육</span>
                 <span class="chip c-etc">기타</span>
-                <span class="lg-hint">· 빈칸 = 출근 &nbsp;|&nbsp; 요일 칸 클릭 = 근태 입력 &nbsp;|&nbsp; 할 일 클릭 = 내용 확대 보기</span>
+                <span class="lg-hint">· 입력값 없음 = 출근(🟢) &nbsp;|&nbsp; 요일 칸 클릭 = 근태 입력 &nbsp;|&nbsp; 할 일 클릭 = 내용 보기</span>
             </div>
-        </section>
 
-        <!-- ===== Dashboard ===== -->
-        <section class="view" id="view-dashboard">
-            <div class="vhead"><h2>📊 대시보드</h2><span class="vlabel" id="dash-date"></span></div>
-            <div class="cards" id="dash-cards"></div>
-            <div class="dgrid">
-                <div class="panel">
-                    <h3>팀원별 현황</h3>
+            <!-- ---- To Do (통합) ---- -->
+            <div class="sec-split">
+                <div class="sub-head">
+                    <h3>✅ To Do</h3>
+                    <div class="vactions">
+                        <select id="todo-member-filter" class="sel-sm"><option value="all">전체 팀원</option></select>
+                        <button class="tbtn" id="btn-toggle-done">완료 항목 숨기기</button>
+                        <button class="pbtn" id="btn-add-todo">+ 할 일 추가</button>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-bottom:16px">
+                    <h3>팀원별 업무 현황</h3>
                     <div class="twrap">
                         <table class="dtable">
-                            <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>진행중 업무</th><th>완료 업무</th><th>상태</th></tr></thead>
-                            <tbody id="dash-body"></tbody>
+                            <thead><tr><th>팀원</th><th>직책</th><th>진행중 업무</th><th>완료 업무</th><th>지원 필요</th><th>진행률</th><th>추가</th></tr></thead>
+                            <tbody id="todo-summary-body"></tbody>
                         </table>
                     </div>
                 </div>
+
                 <div class="panel">
-                    <h3>⚠️ 지원 필요 / 마감 임박</h3>
-                    <div id="dash-alerts"></div>
-                    <h3 style="margin-top:18px">📢 최근 공지</h3>
-                    <div id="dash-notices"></div>
+                    <h3>할 일 목록</h3>
+                    <div class="filters">
+                        <button class="fchip active" data-filter="all">전체</button>
+                        <button class="fchip" data-filter="inprogress">진행중</button>
+                        <button class="fchip" data-filter="done">완료</button>
+                        <button class="fchip" data-filter="support">🔴 지원필요</button>
+                        <button class="fchip" data-filter="duesoon">⏰ 마감임박</button>
+                    </div>
+                    <div id="todo-list"></div>
+                    <div class="prog">
+                        <span class="prog-lb">전체 진행률</span>
+                        <div class="prog-bar"><div class="prog-fill" id="todo-prog"></div></div>
+                        <span class="prog-pct" id="todo-pct">0%</span>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ===== To Do ===== -->
-        <section class="view" id="view-todo">
+        <!-- ===== 월간 근태 ===== -->
+        <section class="view" id="view-month">
             <div class="vhead">
-                <h2>✅ To Do</h2>
+                <h2>🗓️ 월간 근태</h2>
                 <div class="vactions">
-                    <button class="tbtn" id="btn-toggle-done">완료 항목 숨기기</button>
-                    <button class="pbtn" id="btn-add-todo">+ 할 일 추가</button>
+                    <button class="ibtn" id="btn-m-prev">◀</button>
+                    <button class="tbtn" id="btn-m-today">이번 달</button>
+                    <span class="vlabel" id="month-label"></span>
+                    <button class="ibtn" id="btn-m-next">▶</button>
                 </div>
             </div>
-            <!-- 팀원별 요약 테이블 -->
-            <div class="panel" style="margin-bottom:18px">
-                <h3>팀원별 업무 현황</h3>
+            <p class="hint">📌 날짜를 클릭하면 그 날의 팀원 근태를 한 번에 입력할 수 있습니다. (할 일은 주간 스케줄에서 관리)</p>
+            <div class="twrap">
+                <table class="mon-table">
+                    <thead>
+                        <tr>
+                            <th class="sun">일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th class="sat">토</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mon-body"></tbody>
+                </table>
+            </div>
+            <div class="legend">
+                <span class="lg-label">범례:</span>
+                <span class="chip c-trip">출장</span>
+                <span class="chip c-vac">휴가</span>
+                <span class="chip c-edu">교육</span>
+                <span class="chip c-etc">기타</span>
+                <span class="lg-hint">· 표시 없는 팀원은 출근입니다</span>
+            </div>
+            <div class="panel" style="margin-top:16px">
+                <h3>이번 달 근태 집계</h3>
                 <div class="twrap">
                     <table class="dtable">
-                        <thead><tr><th>팀원</th><th>직책</th><th>진행중 업무</th><th>완료 업무</th><th>지원 필요</th><th>진행률</th><th>추가</th></tr></thead>
-                        <tbody id="todo-summary-body"></tbody>
+                        <thead><tr><th>팀원</th><th>직책</th><th>출장</th><th>휴가</th><th>교육</th><th>기타</th><th>합계</th></tr></thead>
+                        <tbody id="mon-sum-body"></tbody>
                     </table>
                 </div>
             </div>
-            <!-- 할 일 목록 -->
-            <div class="panel">
-                <h3>할 일 목록</h3>
-                <div class="filters">
-                    <button class="fchip active" data-filter="all">전체</button>
-                    <button class="fchip" data-filter="inprogress">진행중</button>
-                    <button class="fchip" data-filter="done">완료</button>
-                    <button class="fchip" data-filter="support">🔴 지원필요</button>
-                    <button class="fchip" data-filter="duesoon">⏰ 마감임박</button>
-                    <select id="todo-member-filter" class="sel-sm"><option value="all">전체 팀원</option></select>
-                </div>
-                <div id="todo-list"></div>
-                <div class="prog">
-                    <span class="prog-lb">전체 진행률</span>
-                    <div class="prog-bar"><div class="prog-fill" id="todo-prog"></div></div>
-                    <span class="prog-pct" id="todo-pct">0%</span>
+        </section>
+
+        <!-- ===== 대시보드 ===== -->
+        <section class="view" id="view-dashboard">
+            <div class="vhead"><h2 id="dash-title">📊 대시보드</h2></div>
+
+            <div class="dash-sec">
+                <h3 class="sec-h">🗓️ 근태 현황</h3>
+                <div class="cards" id="dash-cards-att"></div>
+            </div>
+
+            <div class="dash-sec">
+                <h3 class="sec-h">📋 업무 현황</h3>
+                <div class="cards" id="dash-cards-work"></div>
+            </div>
+
+            <div class="dash-sec">
+                <h3 class="sec-h">👥 팀원 상세</h3>
+                <div class="dgrid">
+                    <div class="panel">
+                        <h3>팀원별 현황</h3>
+                        <div class="twrap">
+                            <table class="dtable">
+                                <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>진행중 업무</th><th>완료 업무</th><th>상태</th></tr></thead>
+                                <tbody id="dash-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3>⚠️ 지원 필요 / 마감 임박</h3>
+                        <div id="dash-alerts"></div>
+                        <h3 style="margin-top:18px">📢 최근 공지</h3>
+                        <div id="dash-notices"></div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ===== Notice ===== -->
+        <!-- ===== 공지사항 ===== -->
         <section class="view" id="view-notice">
             <div class="vhead">
                 <h2>📢 공지사항 / 메모</h2>
@@ -148,7 +204,7 @@
             <div id="notice-list"></div>
         </section>
 
-        <!-- ===== Members ===== -->
+        <!-- ===== 팀원 관리 ===== -->
         <section class="view" id="view-members">
             <div class="vhead">
                 <h2>👥 팀원 관리</h2>
@@ -166,7 +222,7 @@
             <p class="hint" id="member-count-txt"></p>
         </section>
 
-        <!-- ===== Guide ===== -->
+        <!-- ===== 사용 가이드 ===== -->
         <section class="view" id="view-guide">
             <div class="vhead"><h2>📖 사용 가이드</h2></div>
             <div class="guide">
@@ -179,24 +235,40 @@
                     </ol>
                 </div>
                 <div class="gblock">
-                    <h3>📆 주간 캘린더</h3>
+                    <h3>📆 주간 스케줄 (근태 + 할 일)</h3>
                     <ul>
+                        <li>한 화면에서 <b>주간 근태</b>와 <b>To Do</b>를 함께 봅니다</li>
                         <li><b>요일 칸 클릭</b> → 근태 선택 (출장/휴가/교육/기타)</li>
-                        <li><b>빈칸 = 출근</b> (별도 입력 불필요)</li>
+                        <li><b>입력값이 없으면 출근</b>이며 🟢 녹색 원으로 표시됩니다</li>
                         <li><b>주간 할 일 칸의 빈 곳 클릭</b> → 해당 팀원 업무 바로 추가</li>
-                        <li><b>할 일 제목 클릭</b> → 전체 내용 확대 보기 (긴 내용은 <b>…</b> 로 줄여서 표시됩니다)</li>
-                        <li>◀ ▶ 로 주 이동, "오늘" 로 현재 주 복귀</li>
+                        <li><b>할 일 제목 클릭</b> → 전체 내용 확대 보기 (긴 내용은 <b>…</b> 로 줄여 표시)</li>
+                    </ul>
+                </div>
+                <div class="gblock">
+                    <h3>🗓️ 월간 근태</h3>
+                    <ul>
+                        <li>한 달 전체 근태를 <b>달력 형식</b>으로 봅니다 (할 일은 표시되지 않습니다)</li>
+                        <li><b>날짜 클릭</b> → 그 날 팀원 전체 근태를 한 번에 입력</li>
+                        <li>버튼을 다시 누르거나 <b>출근</b>을 누르면 입력이 해제됩니다</li>
+                        <li>하단에서 팀원별 <b>월간 근태 집계</b>를 확인할 수 있습니다</li>
                     </ul>
                 </div>
                 <div class="gblock">
                     <h3>✅ To Do</h3>
                     <ul>
-                        <li>상단 <b>팀원별 업무 현황</b> 표에 진행중/완료/지원필요 업무가 <b>내용</b>으로 표시됩니다</li>
-                        <li>내용이 길면 <b>…</b>, 여러 건이면 <b>+N</b> 으로 표시 → <b>칸을 클릭</b>하면 전체 목록이 모달로 열립니다</li>
-                        <li>모달에서 완료 처리 / 수정 / 삭제를 바로 할 수 있습니다</li>
+                        <li><b>팀원별 업무 현황</b> 표에 진행중/완료/지원필요 업무가 <b>내용</b>으로 표시됩니다</li>
+                        <li>내용이 길면 <b>…</b>, 여러 건이면 <b>+N</b> → <b>칸 클릭</b>시 전체 목록 모달</li>
+                        <li>모달에서 완료 처리 / 수정 / 삭제 가능</li>
                         <li>표 우측 <b>+</b> 버튼으로 해당 팀원에게 업무 바로 배정</li>
                         <li><b>지원 필요</b> 체크 시 대시보드에 경고 표시</li>
-                        <li>필터: 전체 / 진행중 / 완료 / 지원필요 / 마감임박</li>
+                    </ul>
+                </div>
+                <div class="gblock">
+                    <h3>📊 대시보드</h3>
+                    <ul>
+                        <li>타이틀에 <b>오늘 날짜</b>가 표시됩니다</li>
+                        <li><b>근태 현황</b>과 <b>업무 현황</b>이 구분되어 표시됩니다</li>
+                        <li>진행중/완료 업무 칸을 클릭하면 상세 내용을 볼 수 있습니다</li>
                     </ul>
                 </div>
                 <div class="gblock">
@@ -207,20 +279,12 @@
                         <li>직책: 파트장 / 책임연구원 / 선임연구원</li>
                     </ul>
                 </div>
-                <div class="gblock">
-                    <h3>📢 공지사항</h3>
-                    <ul>
-                        <li>파트 공지, 회의록, 메모 공유</li>
-                        <li>각 카드의 <b>수정 / 삭제</b> 버튼 사용</li>
-                    </ul>
-                </div>
                 <div class="gblock warn">
                     <h3>⚠️ 데이터 저장 위치 (중요)</h3>
                     <ul>
                         <li>데이터는 <b>접속한 브라우저에만</b> 저장됩니다 (localStorage)</li>
                         <li>따라서 <b>다른 팀원에게 자동 공유되지 않습니다</b></li>
                         <li>공유가 필요하면 좌측 <b>💾 백업 저장</b> → 파일 전달 → 상대방이 <b>📂 백업 불러오기</b></li>
-                        <li>실시간 공동 편집이 필요하면 서버 연동이 필요합니다 (파트장 문의)</li>
                         <li>브라우저 캐시 삭제 시 데이터가 사라지므로 <b>주기적 백업 권장</b></li>
                     </ul>
                 </div>
@@ -229,7 +293,7 @@
     </main>
 </div>
 
-<!-- ===== Modal: 근태 ===== -->
+<!-- ===== Modal: 근태 (주간 단일 셀) ===== -->
 <div class="mask" id="modal-status" hidden>
     <div class="modal sm">
         <div class="mhead"><h3 id="status-title">근태 설정</h3><button class="x" data-close="modal-status">&times;</button></div>
@@ -243,9 +307,18 @@
             <input type="text" class="inp" id="status-note" placeholder="메모 (출장지, 사유 등)">
         </div>
         <div class="mfoot">
-            <button class="obtn" id="btn-status-clear" hidden>삭제</button>
+            <button class="obtn" id="btn-status-clear" hidden>출근으로 되돌리기</button>
             <button class="pbtn" id="btn-status-save">확인</button>
         </div>
+    </div>
+</div>
+
+<!-- ===== Modal: 일자별 근태 일괄 입력 (월간) ===== -->
+<div class="mask" id="modal-day" hidden>
+    <div class="modal wide">
+        <div class="mhead"><h3 id="day-title">근태 입력</h3><button class="x" data-close="modal-day">&times;</button></div>
+        <div class="mbody" id="day-body"></div>
+        <div class="mfoot"><button class="obtn" data-close="modal-day">닫기</button></div>
     </div>
 </div>
 
@@ -273,6 +346,15 @@
             <button class="obtn" data-close="modal-todo">취소</button>
             <button class="pbtn" id="btn-todo-save">저장</button>
         </div>
+    </div>
+</div>
+
+<!-- ===== Modal: 업무 상세 목록 ===== -->
+<div class="mask" id="modal-tasks" hidden>
+    <div class="modal wide">
+        <div class="mhead"><h3 id="tasks-title">업무 상세</h3><button class="x" data-close="modal-tasks">&times;</button></div>
+        <div class="mbody" id="tasks-body"></div>
+        <div class="mfoot"><button class="obtn" data-close="modal-tasks">닫기</button></div>
     </div>
 </div>
 
@@ -319,18 +401,6 @@
             <button class="obtn" data-close="modal-member">취소</button>
             <button class="pbtn" id="btn-member-save">추가</button>
         </div>
-    </div>
-</div>
-
-<!-- ===== Modal: 업무 상세 목록 ===== -->
-<div class="mask" id="modal-tasks" hidden>
-    <div class="modal wide">
-        <div class="mhead">
-            <h3 id="tasks-title">업무 상세</h3>
-            <button class="x" data-close="modal-tasks">&times;</button>
-        </div>
-        <div class="mbody" id="tasks-body"></div>
-        <div class="mfoot"><button class="obtn" data-close="modal-tasks">닫기</button></div>
     </div>
 </div>
 

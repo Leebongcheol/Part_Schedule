@@ -25,7 +25,8 @@ const DEFAULT_MEMBERS = [
 // ===== State =====
 let members = [], schedules = [], todos = [], notices = [];
 let curDate = new Date();
-let view = 'calendar';
+let monDate = new Date();
+let view = 'week';
 let tFilter = 'all', tMemberFilter = 'all', hideDone = false;
 let sCtx = { mid: null, date: null, sel: null };
 
@@ -147,6 +148,106 @@ function stat(mid) {
 }
 
 
+// ===== Render: 월간 근태 =====
+function monthGrid(base) {
+  const y = base.getFullYear(), mo = base.getMonth();
+  const first = new Date(y, mo, 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay()); // 그 주 일요일부터
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    cells.push(d);
+    // 마지막 주가 다음 달로 완전히 넘어가면 종료
+    if (i % 7 === 6 && d.getMonth() !== mo && d > first) {
+      if (cells.length >= 35) break;
+    }
+  }
+  return { cells, month: mo, year: y };
+}
+
+function renderMonth() {
+  const { cells, month, year } = monthGrid(monDate);
+  const td = today();
+  $('month-label').textContent = `${year}년 ${month + 1}월`;
+
+  let html = '';
+  for (let w = 0; w < cells.length / 7; w++) {
+    html += '<tr>';
+    for (let i = 0; i < 7; i++) {
+      const d = cells[w * 7 + i];
+      if (!d) { html += '<td class="other"></td>'; continue; }
+      const ds = fmt(d);
+      const isOther = d.getMonth() !== month;
+      const dow = d.getDay();
+      const cls = [
+        isOther ? 'other' : '',
+        (dow === 0 || dow === 6) && !isOther ? 'wknd' : '',
+        ds === td ? 'tday' : '',
+        dow === 0 ? 'sun-c' : '', dow === 6 ? 'sat-c' : ''
+      ].filter(Boolean).join(' ');
+
+      if (isOther) {
+        html += `<td class="${cls}"><span class="d-num">${d.getDate()}</span></td>`;
+        continue;
+      }
+      const dayScheds = schedules.filter(s => s.date === ds);
+      const shown = dayScheds.slice(0, 3);
+      let inner = `<span class="d-num">${d.getDate()}</span><div class="d-list">`;
+      shown.forEach(s => {
+        const m = members.find(x => x.id === s.memberId);
+        if (!m) return;
+        inner += `<span class="d-chip" style="background:${S_COLOR[s.status] || '#6b7280'}" title="${esc(m.name)} ${s.status}${s.note ? ' · ' + esc(s.note) : ''}">${esc(m.name)} ${s.status}</span>`;
+      });
+      if (dayScheds.length > 3) inner += `<span class="d-more">+${dayScheds.length - 3}건</span>`;
+      inner += '</div>';
+      html += `<td class="${cls}" data-day="${ds}" title="클릭하여 근태 입력">${inner}</td>`;
+    }
+    html += '</tr>';
+  }
+  $('mon-body').innerHTML = html;
+
+  // 월간 집계
+  const ms = String(month + 1).padStart(2, '0');
+  const pre = `${year}-${ms}`;
+  $('mon-sum-body').innerHTML = members.map(m => {
+    const mine = schedules.filter(s => s.memberId === m.id && s.date.startsWith(pre));
+    const c = k => mine.filter(s => s.status === k).length;
+    const t = c('출장'), v = c('휴가'), e = c('교육'), o = c('기타');
+    return `<tr>
+      <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
+      <td>${esc(m.position)}</td>
+      <td>${t || '-'}</td><td>${v || '-'}</td><td>${e || '-'}</td><td>${o || '-'}</td>
+      <td><b>${t + v + e + o || '-'}</b></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="none-txt">팀원이 없습니다</td></tr>';
+}
+
+// ===== 일자별 근태 일괄 입력 =====
+function openDay(ds) {
+  const d = new Date(ds + 'T00:00:00');
+  const dowNames = ['일', '월', '화', '수', '목', '금', '토'];
+  $('day-title').textContent = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} (${dowNames[d.getDay()]}) 근태 입력`;
+  $('day-body').dataset.date = ds;
+  renderDayBody(ds);
+  openModal('modal-day');
+}
+
+function renderDayBody(ds) {
+  $('day-body').innerHTML = members.map(m => {
+    const s = getSch(m.id, ds);
+    const cur = s ? s.status : '';
+    const opts = ['', ...STATUS].map(st =>
+      `<button class="dopt ${cur === st ? 'on' : ''}" data-s="${st}" data-m="${m.id}">${st || '출근'}</button>`
+    ).join('');
+    return `<div class="day-row">
+      <div class="day-mem"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div>
+      <div class="day-opts">${opts}</div>
+      <input type="text" class="day-note" data-note="${m.id}" placeholder="메모" value="${s ? esc(s.note || '') : ''}" ${cur ? '' : 'disabled'}>
+    </div>`;
+  }).join('') || '<div class="none-txt">팀원이 없습니다</div>';
+}
+
 // ===== Render: Calendar =====
 function renderCalendar() {
   const dates = weekOf(curDate), td = today(), names = ['월','화','수','목','금'];
@@ -172,7 +273,7 @@ function renderCalendar() {
               + `<span class="badge ${S_CLASS[s.status] || 'b-etc'}">${s.status}</span>`
               + (s.note ? '<span class="note-ico">📝</span>' : '') + '</td>';
       } else {
-        html += `<td class="clk" data-mid="${m.id}" data-date="${ds}"><span class="empty">·</span></td>`;
+        html += `<td class="clk" data-mid="${m.id}" data-date="${ds}" title="출근 (입력값 없음)"><span class="work-dot"></span></td>`;
       }
     });
 
@@ -202,7 +303,9 @@ function renderCalendar() {
 function renderDashboard() {
   const td = today();
   const now = new Date();
-  $('dash-date').textContent = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()} 기준`;
+  const dowNames = ['일', '월', '화', '수', '목', '금', '토'];
+  $('dash-title').textContent =
+    `📊 대시보드 (${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${dowNames[now.getDay()]})`;
 
   let trip = 0, vac = 0, edu = 0, etc = 0, need = 0;
   members.forEach(m => {
@@ -211,15 +314,27 @@ function renderDashboard() {
     if (stat(m.id).need) need++;
   });
   const open = todos.filter(t => !t.done).length;
+  const doneCnt = todos.filter(t => t.done).length;
   const dueSoon = todos.filter(t => !t.done && (() => { const d = daysLeft(t.dueDate); return d !== null && d <= 2; })()).length;
+  const working = members.length - trip - vac - edu - etc;
 
-  $('dash-cards').innerHTML = `
+  // 근태 현황 카드
+  $('dash-cards-att').innerHTML = `
     <div class="card"><div class="card-val">${members.length}</div><div class="card-lb">전체 인원</div></div>
-    <div class="card"><div class="card-val">${members.length - trip - vac - edu - etc}</div><div class="card-lb">🏢 출근</div></div>
+    <div class="card"><div class="card-val" style="color:#16a34a">${working}</div><div class="card-lb">🟢 출근</div></div>
     <div class="card"><div class="card-val">${trip}</div><div class="card-lb">✈️ 출장</div></div>
     <div class="card"><div class="card-val">${vac}</div><div class="card-lb">🏖️ 휴가</div></div>
     <div class="card"><div class="card-val">${edu}</div><div class="card-lb">📚 교육</div></div>
+    <div class="card"><div class="card-val">${etc}</div><div class="card-lb">📌 기타</div></div>
+  `;
+
+  // 업무 현황 카드
+  const totalT = todos.length;
+  const pct = totalT ? Math.round(doneCnt / totalT * 100) : 0;
+  $('dash-cards-work').innerHTML = `
     <div class="card"><div class="card-val">${open}</div><div class="card-lb">📋 진행중 업무</div></div>
+    <div class="card"><div class="card-val">${doneCnt}</div><div class="card-lb">✅ 완료 업무</div></div>
+    <div class="card"><div class="card-val">${pct}%</div><div class="card-lb">📈 전체 진행률</div></div>
     <div class="card ${dueSoon?'alert':''}"><div class="card-val">${dueSoon}</div><div class="card-lb">⏰ 마감 임박</div></div>
     <div class="card ${need?'alert':''}"><div class="card-val">${need}</div><div class="card-lb">🔴 지원 필요</div></div>
   `;
@@ -483,7 +598,8 @@ function startInlineEdit(td) {
 
 // ===== Render All =====
 function renderAll() {
-  renderCalendar(); renderDashboard(); renderTodos(); renderNotices(); renderMembers();
+  renderCalendar(); renderMonth(); renderDashboard();
+  renderTodos(); renderNotices(); renderMembers();
 }
 
 
@@ -492,9 +608,9 @@ function switchView(v) {
   view = v;
   document.querySelectorAll('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
-  if (v === 'calendar') renderCalendar();
+  if (v === 'week') { renderCalendar(); renderTodos(); }
+  else if (v === 'month') renderMonth();
   else if (v === 'dashboard') renderDashboard();
-  else if (v === 'todo') renderTodos();
   else if (v === 'notice') renderNotices();
   else if (v === 'members') renderMembers();
   closeSidebar();
@@ -643,6 +759,38 @@ function bind() {
   $('btn-prev').addEventListener('click', () => { curDate.setDate(curDate.getDate()-7); renderCalendar(); });
   $('btn-next').addEventListener('click', () => { curDate.setDate(curDate.getDate()+7); renderCalendar(); });
   $('btn-today').addEventListener('click', () => { curDate = new Date(); renderCalendar(); });
+
+  // month nav
+  $('btn-m-prev').addEventListener('click', () => { monDate.setDate(1); monDate.setMonth(monDate.getMonth()-1); renderMonth(); });
+  $('btn-m-next').addEventListener('click', () => { monDate.setDate(1); monDate.setMonth(monDate.getMonth()+1); renderMonth(); });
+  $('btn-m-today').addEventListener('click', () => { monDate = new Date(); renderMonth(); });
+
+  // month day click → 일괄 입력 모달
+  $('mon-body').addEventListener('click', e => {
+    const td = e.target.closest('td[data-day]');
+    if (td) openDay(td.dataset.day);
+  });
+
+  // 일자별 근태 모달 내 동작
+  $('day-body').addEventListener('click', e => {
+    const b = e.target.closest('.dopt');
+    if (!b) return;
+    const ds = $('day-body').dataset.date;
+    const mid = b.dataset.m, st = b.dataset.s;
+    const prev = getSch(mid, ds);
+    if (!st) setSch(mid, ds, null, '');                       // 출근 = 입력 해제
+    else if (prev && prev.status === st) setSch(mid, ds, null, ''); // 같은 값 재클릭 = 해제
+    else setSch(mid, ds, st, prev ? prev.note : '');
+    renderDayBody(ds);
+    renderMonth(); renderCalendar(); renderDashboard();
+  });
+  $('day-body').addEventListener('change', e => {
+    const n = e.target.closest('[data-note]');
+    if (!n) return;
+    const ds = $('day-body').dataset.date;
+    const s = getSch(n.dataset.note, ds);
+    if (s) { setSch(n.dataset.note, ds, s.status, n.value.trim()); renderMonth(); renderCalendar(); toast('메모가 저장되었습니다'); }
+  });
 
   // calendar clicks
   $('sch-body').addEventListener('click', e => {

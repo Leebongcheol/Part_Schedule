@@ -61,8 +61,10 @@ check('캘린더 6행 렌더', D.querySelectorAll('#sch-body tr').length === 6);
 check('캘린더 행당 7칸(팀원+5일+할일)', D.querySelector('#sch-body tr').children.length === 7,
   'cells=' + (D.querySelector('#sch-body tr') || {}).childElementCount);
 check('주간 라벨 채워짐', D.getElementById('week-label').textContent.length > 0);
-check('대시보드 카드 8개', D.querySelectorAll('#dash-cards .card').length === 8,
-  'cards=' + D.querySelectorAll('#dash-cards .card').length);
+check('대시보드 근태 카드 6개', D.querySelectorAll('#dash-cards-att .card').length === 6,
+  'cards=' + D.querySelectorAll('#dash-cards-att .card').length);
+check('대시보드 업무 카드 5개', D.querySelectorAll('#dash-cards-work .card').length === 5,
+  'cards=' + D.querySelectorAll('#dash-cards-work .card').length);
 check('Todo 팀원별 요약 6행', D.querySelectorAll('#todo-summary-body tr').length === 6);
 
 console.log('\n=== 2. 폰트 크기 (CSS) ===');
@@ -119,7 +121,7 @@ D.getElementById('td-priority').value = 'high';
 D.getElementById('btn-todo-save').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check('Todo 목록에 추가', D.querySelectorAll('#todo-list .titem').length === 1);
 check('지원필요 스타일 적용', D.querySelector('#todo-list .titem.sup') !== null);
-check('대시보드 지원필요 반영', D.querySelector('#dash-cards .card.alert') !== null);
+check('대시보드 지원필요 반영', D.querySelector('#dash-cards-work .card.alert') !== null);
 check('캘린더 할일 컬럼에 표시', D.querySelector('#sch-body .mini-todo') !== null);
 
 console.log('\n=== 7. Todo 완료 처리 / 진행률 ===');
@@ -156,10 +158,16 @@ check('수정 반영', D.querySelector('#notice-list h4').textContent === '주�
 check('수정됨 표기', D.querySelector('#notice-list .n-meta').textContent.includes('수정됨'));
 
 console.log('\n=== 10. 뷰 전환 ===');
-['dashboard','todo','notice','members','guide','calendar'].forEach(v => {
+['dashboard','month','notice','members','guide','week'].forEach(v => {
   D.querySelector(`.nav-btn[data-view="${v}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   check(`${v} 뷰 활성화`, D.getElementById('view-' + v).classList.contains('active'));
 });
+check('메뉴에 별도 todo 항목 없음(주간과 통합)',
+  D.querySelector('.nav-btn[data-view="todo"]') === null);
+check('To Do 블록이 주간 뷰 안에 있음',
+  D.getElementById('view-week').contains(D.getElementById('todo-list')));
+check('주간 할일 테이블도 주간 뷰 안에 있음',
+  D.getElementById('view-week').contains(D.getElementById('sch-body')));
 
 console.log('\n=== 11. XSS 방어 ===');
 D.querySelector('.nav-btn[data-view="notice"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
@@ -177,7 +185,7 @@ check('공지 데이터 저장', !!store['ps2_notices']);
 check('Todo 데이터 저장', !!store['ps2_todos']);
 
 console.log('\n=== 13. 내용 미리보기 셀 (숫자 대신 내용) ===');
-D.querySelector('.nav-btn[data-view="todo"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+D.querySelector('.nav-btn[data-view="week"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 
 // 기존 할 일 전부 UI로 삭제 (깨끗한 상태 확보)
 let guard = 0;
@@ -272,12 +280,9 @@ check('단일 업무 상세 모달 열림', D.getElementById('modal-tasks').hidd
   D.querySelectorAll('#tasks-body .tk').length === 1);
 D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 
-D.querySelector('.nav-btn[data-view="calendar"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 // 캘린더 주간 컬럼은 "미완료(마감일 없음) 또는 이번 주 마감" 만 표시하므로
 // 앞 단계에서 모두 완료/삭제된 상태이면 비어 있는 것이 정상 → 미완료 1건을 새로 등록
-D.querySelector('.nav-btn[data-view="todo"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 addViaUI({ title: '캘린더 표시용 미완료 업무', priority: 'medium' });
-D.querySelector('.nav-btn[data-view="calendar"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 const cm = D.querySelector('#sch-body [data-open-task]');
 check('캘린더 할일도 클릭 가능', cm !== null);
 if (cm) {
@@ -310,7 +315,117 @@ lastCells[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check('빈 칸 클릭 시 "없습니다" 안내', D.getElementById('tasks-body').textContent.includes('없습니다'));
 D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 
-console.log('\n=== 20. 백업/복원 왕복 (팀원 간 공유 경로) ===');
+console.log('\n=== 20. 출근 = 녹색 원 표시 ===');
+D.querySelector('.nav-btn[data-view="week"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+const dots = D.querySelectorAll('#sch-body .work-dot');
+check('입력값 없는 칸에 녹색 원 표시', dots.length > 0, 'count=' + dots.length);
+check('녹색 원 CSS가 초록색', /\.work-dot\{[^}]*background:var\(--suc\)/.test(css));
+const workCell = dots[0].closest('td');
+check('출근 칸 title이 "출근"임', (workCell.getAttribute('title') || '').includes('출근'),
+  workCell.getAttribute('title'));
+check('범례에도 출근 녹색 원 있음', D.querySelector('.legend .work-dot') !== null);
+// 근태를 넣으면 녹색 원이 배지로 바뀌는지
+const before = D.querySelectorAll('#sch-body .work-dot').length;
+workCell.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+D.querySelector('.sopt[data-status="휴가"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+D.getElementById('btn-status-save').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('근태 입력 시 녹색 원 → 배지로 대체',
+  D.querySelectorAll('#sch-body .work-dot').length === before - 1,
+  `before=${before} after=${D.querySelectorAll('#sch-body .work-dot').length}`);
+// 다시 출근으로 되돌리기
+const vacCell = D.querySelector('#sch-body .badge.b-vac').closest('td');
+vacCell.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('되돌리기 버튼 노출', D.getElementById('btn-status-clear').hidden === false);
+D.getElementById('btn-status-clear').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('출근으로 되돌리면 녹색 원 복귀',
+  D.querySelectorAll('#sch-body .work-dot').length === before);
+
+console.log('\n=== 21. 월간 근태 달력 ===');
+D.querySelector('.nav-btn[data-view="month"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('월간 뷰 활성화', D.getElementById('view-month').classList.contains('active'));
+check('요일 헤더 7개(일~토)', D.querySelectorAll('.mon-table thead th').length === 7);
+check('일요일 헤더가 일', D.querySelector('.mon-table thead th').textContent === '일');
+const monRows = D.querySelectorAll('#mon-body tr');
+check('주 행이 4~6주', monRows.length >= 4 && monRows.length <= 6, 'rows=' + monRows.length);
+check('각 행 7칸', [...monRows].every(r => r.children.length === 7));
+const nowM = new Date();
+check('월 라벨이 이번 달', D.getElementById('month-label').textContent ===
+  `${nowM.getFullYear()}년 ${nowM.getMonth()+1}월`, D.getElementById('month-label').textContent);
+check('오늘 칸 강조', D.querySelector('#mon-body td.tday') !== null);
+check('할 일은 월간에 표시되지 않음', D.querySelector('#mon-body [data-open-task]') === null);
+check('월간 집계표 렌더', D.querySelectorAll('#mon-sum-body tr').length === 6);
+
+// 월 이동
+const curLabel = D.getElementById('month-label').textContent;
+D.getElementById('btn-m-next').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('다음 달 이동', D.getElementById('month-label').textContent !== curLabel);
+D.getElementById('btn-m-prev').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('이전 달로 복귀', D.getElementById('month-label').textContent === curLabel);
+D.getElementById('btn-m-next').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+D.getElementById('btn-m-today').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('이번 달 버튼 동작', D.getElementById('month-label').textContent === curLabel);
+
+console.log('\n=== 22. 월간 날짜 클릭 → 근태 일괄 입력 ===');
+const dayCell = D.querySelector('#mon-body td[data-day]');
+const dayStr = dayCell.dataset.day;
+dayCell.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('일자별 입력 모달 열림', D.getElementById('modal-day').hidden === false);
+check('제목에 날짜+요일', /\d+\.\d+\.\d+ \([일월화수목금토]\) 근태 입력/.test(D.getElementById('day-title').textContent),
+  D.getElementById('day-title').textContent);
+check('팀원 6행 표시', D.querySelectorAll('#day-body .day-row').length === 6);
+check('행마다 5개 옵션(출근+4)', D.querySelector('#day-body .day-row').querySelectorAll('.dopt').length === 5);
+check('기본은 출근이 활성', D.querySelector('#day-body .dopt[data-s=""]').classList.contains('on'));
+check('메모는 출근일 때 비활성', D.querySelector('#day-body .day-note').disabled === true);
+
+// 출장 지정
+const tripBtn = D.querySelector('#day-body .dopt[data-s="출장"]');
+const targetMid = tripBtn.dataset.m;
+tripBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+const savedSch2 = JSON.parse(store['ps2_sch']).find(s => s.memberId === targetMid && s.date === dayStr);
+check('출장이 저장됨', savedSch2 && savedSch2.status === '출장');
+check('버튼 활성 상태 갱신',
+  D.querySelector(`#day-body .dopt[data-s="출장"][data-m="${targetMid}"]`).classList.contains('on'));
+check('메모 입력 활성화됨',
+  D.querySelector(`#day-body [data-note="${targetMid}"]`).disabled === false);
+check('월간 달력에 칩 표시', D.querySelector(`#mon-body td[data-day="${dayStr}"] .d-chip`) !== null);
+
+// 같은 값 재클릭 = 해제
+D.querySelector(`#day-body .dopt[data-s="출장"][data-m="${targetMid}"]`)
+  .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('같은 값 재클릭 시 해제(출근)',
+  !JSON.parse(store['ps2_sch']).some(s => s.memberId === targetMid && s.date === dayStr));
+
+// 휴가 → 출근 버튼으로 해제
+D.querySelector(`#day-body .dopt[data-s="휴가"][data-m="${targetMid}"]`)
+  .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('휴가 저장 확인',
+  JSON.parse(store['ps2_sch']).some(s => s.memberId === targetMid && s.date === dayStr));
+D.querySelector(`#day-body .dopt[data-s=""][data-m="${targetMid}"]`)
+  .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('출근 클릭 시 입력 해제',
+  !JSON.parse(store['ps2_sch']).some(s => s.memberId === targetMid && s.date === dayStr));
+D.querySelector('[data-close="modal-day"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('모달 닫힘', D.getElementById('modal-day').hidden === true);
+
+console.log('\n=== 23. 대시보드 타이틀 + 섹션 분리 ===');
+D.querySelector('.nav-btn[data-view="dashboard"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+const dTitle = D.getElementById('dash-title').textContent;
+check('타이틀에 오늘 날짜 포함', dTitle.includes(String(nowM.getFullYear())) &&
+  dTitle.includes(String(nowM.getMonth()+1).padStart(2,'0')), dTitle);
+check('타이틀에 요일 포함', /\(\d{4}\.\d{2}\.\d{2} [일월화수목금토]\)/.test(dTitle), dTitle);
+const secs = D.querySelectorAll('#view-dashboard .dash-sec');
+check('섹션이 3개로 구분', secs.length === 3, 'sections=' + secs.length);
+const secHeads = [...D.querySelectorAll('#view-dashboard .sec-h')].map(h => h.textContent.trim());
+check('근태/업무 섹션 제목 존재',
+  secHeads.some(t => t.includes('근태')) && secHeads.some(t => t.includes('업무')),
+  JSON.stringify(secHeads));
+check('근태 카드와 업무 카드가 서로 다른 컨테이너',
+  D.getElementById('dash-cards-att') !== D.getElementById('dash-cards-work') &&
+  !D.getElementById('dash-cards-att').contains(D.getElementById('dash-cards-work')));
+check('섹션 간 여백 CSS 적용', /\.dash-sec\{[^}]*margin-bottom/.test(css));
+check('섹션 제목 CSS 적용', /\.sec-h\{/.test(css));
+
+console.log('\n=== 24. 백업/복원 왕복 (팀원 간 공유 경로) ===');
 // backup() builds a JSON blob; verify the payload shape the restore path expects
 const payload = JSON.stringify({
   version: 2, exportedAt: new Date().toISOString(),
