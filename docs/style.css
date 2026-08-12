@@ -118,11 +118,45 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .mdot{width:11px;height:11px;border-radius:50%;flex-shrink:0;display:inline-block}
 
 /* --- Todo mini in calendar --- */
-.mini-todos{display:flex;flex-direction:column;gap:3px}
-.mini-todo{display:flex;align-items:center;gap:5px;font-size:.8125rem;color:var(--g600)}
+.mini-todos{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mini-todo{display:flex;align-items:center;gap:5px;font-size:.8125rem;color:var(--g600);
+  cursor:pointer;border-radius:4px;padding:1px 3px;min-width:0}
+.mini-todo:hover{background:#bfdbfe;color:var(--g900)}
+.mini-todo>span.mt-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .mini-todo.done{text-decoration:line-through;color:var(--g400)}
+.mini-more{font-size:.75rem;color:var(--pri);font-weight:700;cursor:pointer;padding:1px 3px}
+.mini-more:hover{text-decoration:underline}
 .mini-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .mini-add{font-size:.8125rem;color:var(--g400)}
+
+/* --- Content preview cells (clickable) --- */
+.cell-preview{cursor:pointer;text-align:left!important;max-width:230px}
+.cell-preview:hover{background:#dbeafe}
+.cp-wrap{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0}
+.cp-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.875rem;min-width:0}
+.cp-more{flex-shrink:0;background:var(--g100);color:var(--g600);border-radius:11px;
+  padding:1px 8px;font-size:.75rem;font-weight:700}
+.cell-preview:hover .cp-more{background:var(--pri);color:#fff}
+.cp-none{color:var(--g300)}
+.cp-sup{color:var(--dan);font-weight:600}
+.cp-done{color:var(--g400);text-decoration:line-through}
+
+/* --- Task detail modal --- */
+.modal.wide{max-width:620px}
+.tk{border:1px solid var(--g200);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.tk.sup{border-left:4px solid var(--dan)}
+.tk.done{background:var(--g50);opacity:.75}
+.tk.done .tk-title{text-decoration:line-through}
+.tk-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.tk-title{font-size:1rem;font-weight:600;word-break:break-word;line-height:1.45}
+.tk-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:.8125rem;color:var(--g600);margin-bottom:8px}
+.tk-desc{font-size:.9375rem;color:var(--g600);white-space:pre-wrap;word-break:break-word;
+  background:var(--g50);border-radius:6px;padding:10px 12px;line-height:1.65}
+.tk-acts{display:flex;gap:7px;margin-top:10px}
+.tk-group{margin-bottom:6px}
+.tk-group-h{font-size:.875rem;font-weight:700;color:var(--g600);margin:14px 0 8px;
+  padding-bottom:5px;border-bottom:1px solid var(--g200)}
+.tk-group-h:first-child{margin-top:0}
 
 /* --- Legend --- */
 .legend{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px;

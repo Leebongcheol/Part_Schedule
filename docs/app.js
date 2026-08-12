@@ -177,18 +177,22 @@ function renderCalendar() {
     });
 
     // 주간 할 일 컬럼: 이번 주 관련 todo (마감일이 주 범위 내 or 마감없는 미완료)
-    const wTodos = todos.filter(t => t.assigneeId === m.id &&
-      ((t.dueDate && t.dueDate >= ws && t.dueDate <= we) || (!t.dueDate && !t.done))).slice(0, 4);
+    const allW = todos.filter(t => t.assigneeId === m.id &&
+      ((t.dueDate && t.dueDate >= ws && t.dueDate <= we) || (!t.dueDate && !t.done)));
+    const wTodos = allW.slice(0, 3);
     let tHtml = '';
     if (wTodos.length) {
       tHtml = '<div class="mini-todos">' + wTodos.map(t => {
         const c = t.needSupport && !t.done ? '#dc2626' : (t.priority === 'high' ? '#f59e0b' : '#94a3b8');
-        return `<span class="mini-todo ${t.done?'done':''}"><span class="mini-dot" style="background:${c}"></span>${esc(t.title)}</span>`;
-      }).join('') + '</div>';
+        return `<span class="mini-todo ${t.done?'done':''}" data-open-task="${t.id}" title="클릭하여 전체 내용 보기">`
+             + `<span class="mini-dot" style="background:${c}"></span><span class="mt-t">${esc(t.title)}</span></span>`;
+      }).join('')
+      + (allW.length > 3 ? `<span class="mini-more" data-tasks="${m.id}|open">… 외 ${allW.length - 3}건 더보기</span>` : '')
+      + '</div>';
     } else {
       tHtml = '<span class="mini-add">+ 할 일 추가</span>';
     }
-    html += `<td class="todo-cell" data-add-todo="${m.id}" title="클릭하여 할 일 추가">${tHtml}</td>`;
+    html += `<td class="todo-cell" data-add-todo="${m.id}" title="빈 곳 클릭 = 할 일 추가">${tHtml}</td>`;
     html += '</tr>';
   });
   $('sch-body').innerHTML = html || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다. 팀원 관리에서 추가하세요.</td></tr>';
@@ -224,11 +228,13 @@ function renderDashboard() {
     const s = getSch(m.id, td), st = s ? s.status : '출근';
     const cls = s ? (S_CLASS[st] || 'b-etc') : 'b-work';
     const k = stat(m.id);
+    const mine = todos.filter(t => t.assigneeId === m.id);
     return `<tr>
       <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
       <td>${esc(m.position)}</td>
       <td><span class="badge ${cls}">${st}</span></td>
-      <td>${k.open}</td><td>${k.done}</td>
+      ${previewCell(m.id, 'open', mine.filter(t => !t.done))}
+      ${previewCell(m.id, 'done', mine.filter(t => t.done))}
       <td>${k.need ? '<b style="color:#dc2626">🔴 지원 필요</b>' : '<span style="color:#16a34a">🟢 정상</span>'}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="6" class="none-txt">팀원이 없습니다</td></tr>';
@@ -257,16 +263,99 @@ function renderDashboard() {
 }
 
 
+// ===== 내용 미리보기 셀 =====
+const KIND_LABEL = { open: '진행중 업무', done: '완료 업무', support: '지원 필요 업무' };
+
+function previewCell(mid, kind, list) {
+  if (!list.length) return `<td class="cell-preview" data-tasks="${mid}|${kind}"><span class="cp-none">-</span></td>`;
+  const cls = kind === 'support' ? 'cp-sup' : (kind === 'done' ? 'cp-done' : '');
+  const first = list[0].title;
+  const more = list.length > 1 ? `<span class="cp-more">+${list.length - 1}</span>` : '';
+  const tip = list.map(t => '· ' + t.title).join('\n');
+  return `<td class="cell-preview" data-tasks="${mid}|${kind}" title="${esc(tip)}\n\n(클릭하여 상세 보기)">
+    <div class="cp-wrap"><span class="cp-text ${cls}">${kind==='support'?'🔴 ':''}${esc(first)}</span>${more}</div>
+  </td>`;
+}
+
+// ===== 업무 상세 모달 =====
+function taskCard(t) {
+  const m = members.find(x => x.id === t.assigneeId);
+  const d = daysLeft(t.dueDate);
+  const dueTxt = t.dueDate
+    ? (d < 0 ? `${t.dueDate} (${-d}일 지남)` : d === 0 ? `${t.dueDate} (오늘 마감)` : `${t.dueDate} (${d}일 남음)`)
+    : '미정';
+  return `<div class="tk ${t.done?'done':''} ${!t.done&&t.needSupport?'sup':''}">
+    <div class="tk-top">
+      <span class="tprio ${P_CLASS[t.priority]||'p-m'}">${P_LABEL[t.priority]||'🟡 보통'}</span>
+      ${!t.done&&t.needSupport?'<span class="tprio p-h">🔴 지원 필요</span>':''}
+      <span class="tprio ${t.done?'p-l':'p-m'}">${t.done?'✅ 완료':'⏳ 진행중'}</span>
+    </div>
+    <div class="tk-title">${esc(t.title)}</div>
+    <div class="tk-meta">
+      <span>👤 ${m?esc(m.name):'미지정'}</span>
+      ${t.startDate?`<span>▶️ 시작 ${t.startDate}</span>`:''}
+      <span>📅 마감 ${dueTxt}</span>
+    </div>
+    ${t.description?`<div class="tk-desc">${esc(t.description)}</div>`:''}
+    <div class="tk-acts">
+      <button class="sbtn" data-tk-toggle="${t.id}">${t.done?'↩️ 진행중으로':'✅ 완료 처리'}</button>
+      <button class="sbtn" data-tk-edit="${t.id}">✏️ 수정</button>
+      <button class="dbtn" data-tk-del="${t.id}">🗑️ 삭제</button>
+    </div>
+  </div>`;
+}
+
+function openTasks(mid, kind) {
+  const m = members.find(x => x.id === mid);
+  const mine = todos.filter(t => t.assigneeId === mid);
+  let list;
+  if (kind === 'open') list = mine.filter(t => !t.done);
+  else if (kind === 'done') list = mine.filter(t => t.done);
+  else list = mine.filter(t => !t.done && t.needSupport);
+
+  const po = { high: 0, medium: 1, low: 2 };
+  list.sort((a, b) => (po[a.priority] ?? 1) - (po[b.priority] ?? 1)
+    || (a.dueDate || 'zzz').localeCompare(b.dueDate || 'zzz'));
+
+  $('tasks-title').textContent = `${m ? m.name : ''} · ${KIND_LABEL[kind]} (${list.length}건)`;
+  $('tasks-body').innerHTML = list.length
+    ? list.map(taskCard).join('')
+    : '<div class="none-txt">해당 업무가 없습니다.</div>';
+  $('tasks-body').dataset.ctx = `${mid}|${kind}`;
+  openModal('modal-tasks');
+}
+
+function openOneTask(id) {
+  const t = todos.find(x => x.id === id);
+  if (!t) return;
+  const m = members.find(x => x.id === t.assigneeId);
+  $('tasks-title').textContent = `업무 상세${m ? ' · ' + m.name : ''}`;
+  $('tasks-body').innerHTML = taskCard(t);
+  $('tasks-body').dataset.ctx = '';
+  openModal('modal-tasks');
+}
+
+function refreshTasksModal() {
+  const ctx = $('tasks-body').dataset.ctx;
+  if (ctx) { const [mid, kind] = ctx.split('|'); openTasks(mid, kind); }
+  else closeModal('modal-tasks');
+}
+
 // ===== Render: Todo =====
 function renderTodos() {
-  // 팀원별 요약
+  // 팀원별 요약 (숫자 대신 업무 내용 미리보기, 클릭 시 상세 모달)
   $('todo-summary-body').innerHTML = members.map(m => {
     const k = stat(m.id);
+    const mine = todos.filter(t => t.assigneeId === m.id);
+    const open = mine.filter(t => !t.done);
+    const done = mine.filter(t => t.done);
+    const sup = open.filter(t => t.needSupport);
     return `<tr>
       <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
       <td>${esc(m.position)}</td>
-      <td>${k.open}</td><td>${k.done}</td>
-      <td>${k.sup ? '<b style="color:#dc2626">🔴</b>' : '-'}</td>
+      ${previewCell(m.id, 'open', open)}
+      ${previewCell(m.id, 'done', done)}
+      ${previewCell(m.id, 'support', sup)}
       <td><span class="mini-prog"><i style="width:${k.pct}%"></i></span> <small>${k.pct}%</small></td>
       <td><button class="addbtn" data-add-todo="${m.id}" title="${esc(m.name)}에게 할 일 추가">+</button></td>
     </tr>`;
@@ -293,12 +382,12 @@ function renderTodos() {
     return `<div class="titem ${t.done?'done':''} ${!t.done&&t.needSupport?'sup':soon?'due':''}">
       <input type="checkbox" class="tchk" data-chk="${t.id}" ${t.done?'checked':''}>
       <div class="tbody-c">
-        <div class="tt-title">${!t.done&&t.needSupport?'🔴 ':''}${esc(t.title)}</div>
+        <div class="tt-title" data-open-task="${t.id}" title="클릭하여 전체 내용 보기" style="cursor:pointer">${!t.done&&t.needSupport?'🔴 ':''}${esc(t.title)}</div>
         <div class="tt-meta">
           <span>👤 ${m?esc(m.name):'미지정'}</span>
           <span class="tprio ${P_CLASS[t.priority]||'p-m'}">${P_LABEL[t.priority]||'🟡 보통'}</span>
           ${dueTxt?`<span${soon?' style="color:#d97706;font-weight:600"':''}>${dueTxt}</span>`:''}
-          ${t.description?`<span title="${esc(t.description)}">💬</span>`:''}
+          ${t.description?`<span data-open-task="${t.id}" style="cursor:pointer" title="설명 보기">💬 내용보기</span>`:''}
         </div>
       </div>
       <div class="tacts">
@@ -557,6 +646,11 @@ function bind() {
 
   // calendar clicks
   $('sch-body').addEventListener('click', e => {
+    // 개별 할 일 클릭 → 상세 보기 (셀의 "추가"보다 우선)
+    const op = e.target.closest('[data-open-task]');
+    if (op) { openOneTask(op.dataset.openTask); return; }
+    const more = e.target.closest('[data-tasks]');
+    if (more) { const [mid, kind] = more.dataset.tasks.split('|'); openTasks(mid, kind); return; }
     const addCell = e.target.closest('[data-add-todo]');
     if (addCell) { openTodo(addCell.dataset.addTodo); return; }
     const td = e.target.closest('td.clk');
@@ -585,15 +679,40 @@ function bind() {
   $('btn-toggle-done').addEventListener('click', () => { hideDone = !hideDone; renderTodos(); });
   $('todo-summary-body').addEventListener('click', e => {
     const b = e.target.closest('[data-add-todo]');
-    if (b) openTodo(b.dataset.addTodo);
+    if (b) { openTodo(b.dataset.addTodo); return; }
+    const c = e.target.closest('[data-tasks]');
+    if (c) { const [mid, kind] = c.dataset.tasks.split('|'); openTasks(mid, kind); }
   });
   $('todo-list').addEventListener('click', e => {
     const c = e.target.closest('[data-chk]');
     if (c) { updTodo(c.dataset.chk, { done: c.checked }); renderAll(); return; }
+    const op = e.target.closest('[data-open-task]');
+    if (op) { openOneTask(op.dataset.openTask); return; }
     const ed = e.target.closest('[data-edit-todo]');
     if (ed) { openTodo(null, ed.dataset.editTodo); return; }
     const dl = e.target.closest('[data-del-todo]');
     if (dl && confirm('이 할 일을 삭제할까요?')) { delTodo(dl.dataset.delTodo); renderAll(); toast('삭제되었습니다'); }
+  });
+
+  $('dash-body').addEventListener('click', e => {
+    const c = e.target.closest('[data-tasks]');
+    if (c) { const [mid, kind] = c.dataset.tasks.split('|'); openTasks(mid, kind); }
+  });
+
+  // 업무 상세 모달 내 동작
+  $('tasks-body').addEventListener('click', e => {
+    const tg = e.target.closest('[data-tk-toggle]');
+    if (tg) {
+      const t = todos.find(x => x.id === tg.dataset.tkToggle);
+      if (t) { updTodo(t.id, { done: !t.done }); renderAll(); refreshTasksModal(); toast('변경되었습니다'); }
+      return;
+    }
+    const ed = e.target.closest('[data-tk-edit]');
+    if (ed) { closeModal('modal-tasks'); openTodo(null, ed.dataset.tkEdit); return; }
+    const dl = e.target.closest('[data-tk-del]');
+    if (dl && confirm('이 업무를 삭제할까요?')) {
+      delTodo(dl.dataset.tkDel); renderAll(); refreshTasksModal(); toast('삭제되었습니다');
+    }
   });
   document.querySelector('.filters').addEventListener('click', e => {
     const b = e.target.closest('.fchip');

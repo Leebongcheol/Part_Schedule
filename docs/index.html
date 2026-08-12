@@ -73,7 +73,7 @@
                 <span class="chip c-vac">휴가</span>
                 <span class="chip c-edu">교육</span>
                 <span class="chip c-etc">기타</span>
-                <span class="lg-hint">· 빈칸 = 출근 &nbsp;|&nbsp; 셀 클릭 = 근태 입력 &nbsp;|&nbsp; 할 일 칸 클릭 = 업무 추가</span>
+                <span class="lg-hint">· 빈칸 = 출근 &nbsp;|&nbsp; 요일 칸 클릭 = 근태 입력 &nbsp;|&nbsp; 할 일 클릭 = 내용 확대 보기</span>
             </div>
         </section>
 
@@ -86,7 +86,7 @@
                     <h3>팀원별 현황</h3>
                     <div class="twrap">
                         <table class="dtable">
-                            <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>진행중</th><th>완료</th><th>상태</th></tr></thead>
+                            <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>진행중 업무</th><th>완료 업무</th><th>상태</th></tr></thead>
                             <tbody id="dash-body"></tbody>
                         </table>
                     </div>
@@ -114,7 +114,7 @@
                 <h3>팀원별 업무 현황</h3>
                 <div class="twrap">
                     <table class="dtable">
-                        <thead><tr><th>팀원</th><th>직책</th><th>진행중</th><th>완료</th><th>지원필요</th><th>진행률</th><th>추가</th></tr></thead>
+                        <thead><tr><th>팀원</th><th>직책</th><th>진행중 업무</th><th>완료 업무</th><th>지원 필요</th><th>진행률</th><th>추가</th></tr></thead>
                         <tbody id="todo-summary-body"></tbody>
                     </table>
                 </div>
@@ -183,14 +183,17 @@
                     <ul>
                         <li><b>요일 칸 클릭</b> → 근태 선택 (출장/휴가/교육/기타)</li>
                         <li><b>빈칸 = 출근</b> (별도 입력 불필요)</li>
-                        <li><b>주간 할 일 칸 클릭</b> → 해당 팀원 업무 바로 추가</li>
+                        <li><b>주간 할 일 칸의 빈 곳 클릭</b> → 해당 팀원 업무 바로 추가</li>
+                        <li><b>할 일 제목 클릭</b> → 전체 내용 확대 보기 (긴 내용은 <b>…</b> 로 줄여서 표시됩니다)</li>
                         <li>◀ ▶ 로 주 이동, "오늘" 로 현재 주 복귀</li>
                     </ul>
                 </div>
                 <div class="gblock">
                     <h3>✅ To Do</h3>
                     <ul>
-                        <li>상단 <b>팀원별 업무 현황</b> 표에서 팀원별 진행률 확인</li>
+                        <li>상단 <b>팀원별 업무 현황</b> 표에 진행중/완료/지원필요 업무가 <b>내용</b>으로 표시됩니다</li>
+                        <li>내용이 길면 <b>…</b>, 여러 건이면 <b>+N</b> 으로 표시 → <b>칸을 클릭</b>하면 전체 목록이 모달로 열립니다</li>
+                        <li>모달에서 완료 처리 / 수정 / 삭제를 바로 할 수 있습니다</li>
                         <li>표 우측 <b>+</b> 버튼으로 해당 팀원에게 업무 바로 배정</li>
                         <li><b>지원 필요</b> 체크 시 대시보드에 경고 표시</li>
                         <li>필터: 전체 / 진행중 / 완료 / 지원필요 / 마감임박</li>
@@ -316,6 +319,18 @@
             <button class="obtn" data-close="modal-member">취소</button>
             <button class="pbtn" id="btn-member-save">추가</button>
         </div>
+    </div>
+</div>
+
+<!-- ===== Modal: 업무 상세 목록 ===== -->
+<div class="mask" id="modal-tasks" hidden>
+    <div class="modal wide">
+        <div class="mhead">
+            <h3 id="tasks-title">업무 상세</h3>
+            <button class="x" data-close="modal-tasks">&times;</button>
+        </div>
+        <div class="mbody" id="tasks-body"></div>
+        <div class="mfoot"><button class="obtn" data-close="modal-tasks">닫기</button></div>
     </div>
 </div>
 

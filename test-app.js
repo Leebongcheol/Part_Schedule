@@ -176,7 +176,141 @@ check('일정 데이터 저장', !!savedSch && savedSch.includes('출장'));
 check('공지 데이터 저장', !!store['ps2_notices']);
 check('Todo 데이터 저장', !!store['ps2_todos']);
 
-console.log('\n=== 13. 백업/복원 왕복 (팀원 간 공유 경로) ===');
+console.log('\n=== 13. 내용 미리보기 셀 (숫자 대신 내용) ===');
+D.querySelector('.nav-btn[data-view="todo"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+// 기존 할 일 전부 UI로 삭제 (깨끗한 상태 확보)
+let guard = 0;
+while (D.querySelector('#todo-list [data-del-todo]') && guard++ < 50) {
+  D.querySelector('#todo-list [data-del-todo]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+}
+check('사전 정리: 할 일 0건', JSON.parse(store['ps2_todos']).length === 0,
+  'left=' + JSON.parse(store['ps2_todos']).length);
+
+const firstMemberId = JSON.parse(store['ps2_members'])[0].id;
+const LONG = '포장 낙하 시험 조건 재검토 및 사양서 개정 작업 진행 필요';
+const LONGDESC = '상세 설명 본문입니다.\n두번째 줄입니다.';
+
+// 실제 모달 UI로 3건 등록
+function addViaUI({ title, priority, support, desc }) {
+  D.getElementById('btn-add-todo').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  D.getElementById('td-title').value = title;
+  D.getElementById('td-assignee').value = firstMemberId;
+  D.getElementById('td-priority').value = priority;
+  D.getElementById('td-support').checked = !!support;
+  D.getElementById('td-desc').value = desc || '';
+  D.getElementById('btn-todo-save').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+}
+// 제목으로 해당 항목의 체크박스를 찾아 완료 처리 (정렬 순서에 의존하지 않음)
+function markDoneByTitle(title) {
+  const item = [...D.querySelectorAll('#todo-list .titem')]
+    .find(el => el.querySelector('.tt-title').textContent.includes(title));
+  if (!item) return false;
+  item.querySelector('[data-chk]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  return true;
+}
+addViaUI({ title: LONG, priority: 'high', support: true, desc: LONGDESC });
+addViaUI({ title: '2차 시험 준비', priority: 'medium' });
+addViaUI({ title: '1차 보고서 제출', priority: 'low' });
+check('완료 처리 대상 항목 찾음', markDoneByTitle('1차 보고서 제출'));
+
+const storedTodos = JSON.parse(store['ps2_todos']);
+check('UI로 3건 등록됨', storedTodos.length === 3, 'got=' + storedTodos.length);
+check('1건은 완료 상태', storedTodos.filter(t => t.done).length === 1);
+
+const row0 = D.querySelector('#todo-summary-body tr');
+const cells = row0.querySelectorAll('[data-tasks]');
+check('진행중/완료/지원필요 3칸 모두 클릭 가능', cells.length === 3, 'got=' + cells.length);
+check('진행중 칸에 업무 제목 표시(숫자 아님)',
+  cells[0].textContent.includes('포장 낙하 시험'), JSON.stringify(cells[0].textContent.trim()));
+check('여러 건이면 +N 표시', cells[0].querySelector('.cp-more') &&
+  cells[0].querySelector('.cp-more').textContent === '+1',
+  cells[0].querySelector('.cp-more') && cells[0].querySelector('.cp-more').textContent);
+check('완료 칸에 완료 업무명 표시', cells[1].textContent.includes('1차 보고서'),
+  JSON.stringify(cells[1].textContent.trim()));
+check('지원필요 칸에 🔴 + 내용', cells[2].textContent.includes('🔴') && cells[2].textContent.includes('포장 낙하'));
+check('긴 제목은 CSS ellipsis 적용(.cp-text)', /\.cp-text\{[^}]*text-overflow:ellipsis/.test(css));
+check('title 속성에 전체 목록 툴팁', (cells[0].getAttribute('title') || '').includes('2차 시험 준비'),
+  JSON.stringify(cells[0].getAttribute('title')));
+
+console.log('\n=== 14. 진행중 칸 클릭 → 상세 모달 ===');
+cells[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('상세 모달 열림', D.getElementById('modal-tasks').hidden === false);
+check('제목에 팀원명+구분+건수', /진행중 업무 \(2건\)/.test(D.getElementById('tasks-title').textContent),
+  D.getElementById('tasks-title').textContent);
+check('모달에 업무 2건 표시', D.querySelectorAll('#tasks-body .tk').length === 2);
+check('긴 제목 전문이 모달에 표시', D.querySelector('#tasks-body .tk-title').textContent === LONG);
+check('설명 전문 표시', D.querySelector('#tasks-body .tk-desc') !== null &&
+  D.querySelector('#tasks-body .tk-desc').textContent.includes('두번째 줄입니다'));
+check('지원필요 강조 스타일', D.querySelector('#tasks-body .tk.sup') !== null);
+
+console.log('\n=== 15. 모달 내 완료 처리 / 삭제 ===');
+const longId = JSON.parse(store['ps2_todos']).find(t => t.title === LONG).id;
+D.querySelector(`#tasks-body [data-tk-toggle="${longId}"]`)
+  .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('완료 처리 후 저장 반영',
+  JSON.parse(store['ps2_todos']).find(t => t.id === longId).done === true);
+check('모달이 갱신되어 1건만 남음', D.querySelectorAll('#tasks-body .tk').length === 1,
+  'got=' + D.querySelectorAll('#tasks-body .tk').length);
+D.querySelector('#tasks-body [data-tk-del]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('삭제 반영', JSON.parse(store['ps2_todos']).length === 2,
+  'got=' + JSON.parse(store['ps2_todos']).length);
+
+console.log('\n=== 16. 완료 칸 클릭 → 완료 업무 목록 ===');
+const cells2 = D.querySelector('#todo-summary-body tr').querySelectorAll('[data-tasks]');
+cells2[1].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('완료 업무 모달 열림', /완료 업무/.test(D.getElementById('tasks-title').textContent));
+check('완료 처리한 항목 포함', D.getElementById('tasks-body').textContent.includes('포장 낙하 시험'));
+D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('모달 닫힘', D.getElementById('modal-tasks').hidden === true);
+
+console.log('\n=== 17. 할 일 목록/캘린더에서 제목 클릭 → 상세 ===');
+const tt = D.querySelector('#todo-list [data-open-task]');
+check('목록 제목이 클릭 가능', tt !== null);
+tt.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('단일 업무 상세 모달 열림', D.getElementById('modal-tasks').hidden === false &&
+  D.querySelectorAll('#tasks-body .tk').length === 1);
+D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+D.querySelector('.nav-btn[data-view="calendar"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+// 캘린더 주간 컬럼은 "미완료(마감일 없음) 또는 이번 주 마감" 만 표시하므로
+// 앞 단계에서 모두 완료/삭제된 상태이면 비어 있는 것이 정상 → 미완료 1건을 새로 등록
+D.querySelector('.nav-btn[data-view="todo"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+addViaUI({ title: '캘린더 표시용 미완료 업무', priority: 'medium' });
+D.querySelector('.nav-btn[data-view="calendar"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+const cm = D.querySelector('#sch-body [data-open-task]');
+check('캘린더 할일도 클릭 가능', cm !== null);
+if (cm) {
+  cm.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check('캘린더에서 상세 모달 열림 (추가 모달 아님)',
+    D.getElementById('modal-tasks').hidden === false && D.getElementById('modal-todo').hidden === true);
+  D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+}
+// 빈 곳 클릭은 여전히 추가 동작
+const emptyCell = [...D.querySelectorAll('#sch-body td.todo-cell')].find(c => c.querySelector('.mini-add'));
+if (emptyCell) {
+  emptyCell.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check('빈 할일칸 클릭 시 추가 모달', D.getElementById('modal-todo').hidden === false);
+  D.querySelector('[data-close="modal-todo"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+}
+
+console.log('\n=== 18. 대시보드 표도 내용+클릭 ===');
+D.querySelector('.nav-btn[data-view="dashboard"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+const dCells = D.querySelector('#dash-body tr').querySelectorAll('[data-tasks]');
+check('대시보드 진행중/완료 칸 클릭 가능', dCells.length === 2, 'got=' + dCells.length);
+dCells[1].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('대시보드에서 상세 모달 열림', D.getElementById('modal-tasks').hidden === false);
+D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+console.log('\n=== 19. 업무 없는 팀원은 "-" 표시 ===');
+const lastRow = [...D.querySelectorAll('#dash-body tr')].pop();
+const lastCells = lastRow.querySelectorAll('[data-tasks]');
+check('빈 칸은 - 로 표시', lastCells[0].querySelector('.cp-none') !== null);
+lastCells[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check('빈 칸 클릭 시 "없습니다" 안내', D.getElementById('tasks-body').textContent.includes('없습니다'));
+D.querySelector('[data-close="modal-tasks"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+console.log('\n=== 20. 백업/복원 왕복 (팀원 간 공유 경로) ===');
 // backup() builds a JSON blob; verify the payload shape the restore path expects
 const payload = JSON.stringify({
   version: 2, exportedAt: new Date().toISOString(),
