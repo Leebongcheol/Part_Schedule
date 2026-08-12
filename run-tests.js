@@ -1,5 +1,5 @@
 const { execSync } = require('child_process');
-const suites = ['test-app.js', 'test-sync.js'];
+const suites = ['test-app.js', 'test-sync.js', 'test-config.js'];
 let allOk = true;
 
 suites.forEach(s => {

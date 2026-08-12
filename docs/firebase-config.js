@@ -5,14 +5,20 @@
  *  값이 비어 있으면 → 오프라인 모드(브라우저 localStorage)로 동작합니다.
  *  값을 채우면      → 파트원 전체가 실시간으로 공유합니다.
  *
+ *  ※ SDK는 index.html에서 <script> 태그로 이미 불러옵니다.
+ *    npm install 이나 import 코드는 추가할 필요가 없습니다.
+ *
  *  설정 방법은 docs/SETUP-FIREBASE.md 문서를 참고하세요.
  * ============================================================
  */
 window.FIREBASE_CONFIG = {
-  apiKey: '',
-  authDomain: '',
-  databaseURL: '',   // 예: https://part-schedule-xxxx-default-rtdb.asia-southeast1.firebasedatabase.app
-  projectId: ''
+  apiKey: 'AIzaSyA3skAyqXHuChi6LON9-aYlAaDiu_ifCr4',
+  authDomain: 'part-schedule.firebaseapp.com',
+  databaseURL: 'https://part-schedule-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'part-schedule',
+  storageBucket: 'part-schedule.firebasestorage.app',
+  messagingSenderId: '897125965086',
+  appId: '1:897125965086:web:fd27b34963b21856c63d0f'
 };
 
 /** 파트 데이터가 저장될 경로 (여러 파트가 한 프로젝트를 쓸 때 구분) */
