@@ -563,7 +563,7 @@ function refreshTasksModal() {
 
 // ===== Render: Notice =====
 function renderNotices() {
-  const icon = { '공지': '📢', '회의록': '📝', '메모': '💡' };
+  const icon = { '공지': '📢', '회의록': '📝', '메모': '💡', '자유': '💬' };
   $('notice-list').innerHTML = noticesSorted().map(n => {
     const d = new Date(n.date);
     const ds = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;

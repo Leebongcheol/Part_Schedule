@@ -104,10 +104,10 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .dtable td:first-child{text-align:left}
 .dtable tbody tr:hover{background:var(--pri-l)}
 
-/* 대시보드 팀원별 현황: 메인 업무에 가장 넓은 폭 배분 */
+/* 대시보드 팀원별 현황: 이름·직책은 넓게, 메인 업무는 남는 폭 */
 #view-dashboard .dtable{table-layout:fixed}
-#view-dashboard .dtable th.c-nm{width:96px}
-#view-dashboard .dtable th.c-po{width:92px}
+#view-dashboard .dtable th.c-nm{width:144px}
+#view-dashboard .dtable th.c-po{width:138px}
 #view-dashboard .dtable th.c-at{width:76px}
 #view-dashboard .dtable th.c-main{width:auto}
 #view-dashboard .dtable th.c-sup{width:108px}
@@ -458,6 +458,7 @@ tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1
 .ncard.type-공지{border-left:4px solid var(--pri)}
 .ncard.type-회의록{border-left:4px solid var(--suc)}
 .ncard.type-메모{border-left:4px solid var(--warn)}
+.ncard.type-자유{border-left:4px solid var(--g400)}
 .n-top{display:flex;align-items:center;gap:9px;margin-bottom:6px;flex-wrap:wrap}
 .n-type{padding:2px 10px;border-radius:12px;background:var(--g100);font-size:.75rem;font-weight:600;color:var(--g600)}
 .ncard h4{font-size:1.0625rem;font-weight:600}
@@ -483,6 +484,9 @@ tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1
 .modal{background:#fff;border-radius:12px;box-shadow:0 14px 44px rgba(0,0,0,.2);
   width:100%;max-width:480px;max-height:88vh;overflow-y:auto;animation:pop .18s ease}
 .modal.sm{max-width:340px}
+/* 공지 작성용 대형 모달: 가로 약 2배, 세로 약 1.5배 */
+.modal.xl{max-width:960px;max-height:92vh}
+.ta-lg{min-height:330px;resize:vertical;line-height:1.6}
 @keyframes pop{from{transform:scale(.96) translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .mhead{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;
   border-bottom:1px solid var(--g200)}
@@ -499,6 +503,7 @@ tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1
 .inp-color{height:42px;padding:3px;cursor:pointer}
 textarea.inp{resize:vertical}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
 .ck{display:flex;align-items:center;gap:8px;font-size:.9375rem;cursor:pointer;font-weight:500}
 .ck input{width:18px;height:18px;accent-color:var(--dan)}
 .sopts{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
@@ -545,6 +550,8 @@ textarea.inp{resize:vertical}
   .cards{grid-template-columns:repeat(2,1fr)}
   .vlabel{min-width:120px;font-size:.875rem}
   .row2{grid-template-columns:1fr}
+  .row3{grid-template-columns:1fr}
+  .ta-lg{min-height:220px}
   .sel-sm{margin-left:0}
   .vhead{flex-direction:column;align-items:flex-start}
   .vactions{width:100%}

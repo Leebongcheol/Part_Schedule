@@ -17,7 +17,7 @@
         <nav class="nav">
             <button class="nav-btn active" data-view="notice"><span>📢</span>공지사항</button>
             <button class="nav-btn" data-view="month"><span>🗓️</span>월간 근태</button>
-            <button class="nav-btn" data-view="week"><span>📆</span>주간 스케줄</button>
+            <button class="nav-btn" data-view="week"><span>📆</span>주간 스케줄(To do)</button>
             <button class="nav-btn" data-view="dashboard"><span>📊</span>대시보드</button>
             <button class="nav-btn" data-view="members"><span>👥</span>팀원 관리</button>
             <button class="nav-btn" data-view="guide"><span>📖</span>사용 가이드</button>
@@ -43,7 +43,7 @@
         <!-- ===== 주간 스케줄 (근태 + To Do 완전 통합) ===== -->
         <section class="view" id="view-week">
             <div class="vhead">
-                <h2>📆 주간 스케줄</h2>
+                <h2>📆 주간 스케줄(To do)</h2>
                 <div class="vactions">
                     <button class="ibtn" id="btn-prev">◀</button>
                     <button class="tbtn" id="btn-today">이번 주</button>
@@ -264,10 +264,6 @@
                         </li>
                         <li>실시간 공유 모드에서도 마지막 데이터가 브라우저에 캐시되어, 네트워크가 끊겨도 화면은 유지됩니다.</li>
                         <li>공유 모드는 <b>로그인 없이</b> 링크만으로 사용하도록 설정되어 있습니다.</li>
-                        <li>데이터 백업이 필요하면 <b>Firebase 콘솔 → Realtime Database → 데이터</b> 에서
-                            우측 ⋮ 메뉴의 <b>JSON 내보내기</b>를 사용하세요. (파트장 권한 필요)</li>
-                        <li>⚠️ 삭제한 데이터는 되돌릴 수 없습니다. 팀원·업무 삭제 시 확인 후 진행하세요.</li>
-                        <li>연결 설정 방법은 저장소의 <code>docs/SETUP-FIREBASE.md</code> 문서를 참고하세요.</li>
                     </ul>
                 </div>
             </div>
@@ -343,18 +339,21 @@
 
 <!-- ===== Modal: Notice ===== -->
 <div class="mask" id="modal-notice" hidden>
-    <div class="modal">
+    <div class="modal xl">
         <div class="mhead"><h3 id="notice-modal-title">공지사항 작성</h3><button class="x" data-close="modal-notice">&times;</button></div>
         <div class="mbody">
             <input type="hidden" id="notice-edit-id">
-            <div class="row2">
+            <div class="row3">
                 <div class="fg"><label>제목 *</label><input type="text" class="inp" id="nt-title" placeholder="공지 제목"></div>
                 <div class="fg"><label>작성자</label><select class="inp" id="nt-author"></select></div>
+                <div class="fg"><label>구분</label><select class="inp" id="nt-type">
+                    <option value="공지">📢 공지</option>
+                    <option value="회의록">📝 회의록</option>
+                    <option value="메모">💡 메모</option>
+                    <option value="자유">💬 자유</option>
+                </select></div>
             </div>
-            <div class="fg"><label>구분</label><select class="inp" id="nt-type">
-                <option value="공지">📢 공지</option><option value="회의록">📝 회의록</option><option value="메모">💡 메모</option>
-            </select></div>
-            <div class="fg"><label>내용</label><textarea class="inp" id="nt-content" rows="6" placeholder="내용을 입력하세요"></textarea></div>
+            <div class="fg"><label>내용</label><textarea class="inp ta-lg" id="nt-content" rows="14" placeholder="내용을 입력하세요"></textarea></div>
         </div>
         <div class="mfoot">
             <button class="obtn" data-close="modal-notice">취소</button>

@@ -76,7 +76,7 @@ check('순서 정확', JSON.stringify(navOrder) ===
 const navLabels = [...D.querySelectorAll('.nav .nav-btn')].map(b => b.textContent.trim());
 check('첫 항목이 공지사항', navLabels[0].includes('공지사항'), navLabels[0]);
 check('두번째가 월간 근태', navLabels[1].includes('월간'), navLabels[1]);
-check('세번째가 주간 스케줄', navLabels[2].includes('주간'), navLabels[2]);
+check('세번째가 주간 스케줄(To do)', navLabels[2].includes('주간 스케줄(To do)'), navLabels[2]);
 
 sec('2. 기본 진입 화면 = 공지사항');
 check('공지 뷰가 활성', D.getElementById('view-notice').classList.contains('active'));
@@ -535,6 +535,62 @@ check('빨간 채움 버튼 아님', !trash.classList.contains('dbtn'));
 check('평상시 회색, 호버 시 빨강', /\.trash\{[^}]*color:var\(--g400\)/.test(css) &&
   /\.trash:hover\{[^}]*color:var\(--dan\)/.test(css));
 check('접근성 라벨 존재', !!trash.getAttribute('aria-label'));
+
+sec('13-2. 라벨/열너비/가이드/공지 모달');
+// 메뉴 & 페이지 제목
+check('메뉴 라벨 = 주간 스케줄(To do)',
+  D.querySelector('.nav-btn[data-view="week"]').textContent.includes('주간 스케줄(To do)'),
+  D.querySelector('.nav-btn[data-view="week"]').textContent.trim());
+check('페이지 제목 = 주간 스케줄(To do)',
+  D.querySelector('#view-week .vhead h2').textContent.includes('주간 스케줄(To do)'),
+  D.querySelector('#view-week .vhead h2').textContent.trim());
+
+// 대시보드 열 너비 1.5배
+check('이름 열 144px (96 x1.5)', /th\.c-nm\{width:144px\}/.test(css));
+check('직책 열 138px (92 x1.5)', /th\.c-po\{width:138px\}/.test(css));
+check('메인 업무는 남는 폭(auto)', /th\.c-main\{width:auto\}/.test(css));
+
+// 사용 가이드: 기술적 3항목 제거
+const guideTxt = D.getElementById('view-guide').textContent;
+check('백업 안내 제거', !guideTxt.includes('JSON 내보내기'));
+check('SETUP-FIREBASE 안내 제거', !guideTxt.includes('SETUP-FIREBASE'));
+check('삭제 되돌릴 수 없음 안내 제거', !guideTxt.includes('되돌릴 수 없습니다'));
+check('데이터 저장 위치 블록은 유지', guideTxt.includes('데이터 저장 위치'));
+check('상태 표시 설명은 유지', guideTxt.includes('실시간 공유 중'));
+const dataLis = [...D.querySelectorAll('#view-guide .gblock.warn > ul > li')];
+check('저장 위치 항목 3개로 축소', dataLis.length === 3, 'count=' + dataLis.length);
+
+// 공지 구분에 자유 추가
+nav('notice');
+click(D.getElementById('btn-add-notice'));
+const types = [...D.querySelectorAll('#nt-type option')].map(o => o.value);
+check('구분 4종 (공지/회의록/메모/자유)',
+  JSON.stringify(types) === JSON.stringify(['공지', '회의록', '메모', '자유']), JSON.stringify(types));
+const freeOpt = D.querySelector('#nt-type option[value="자유"]');
+check('자유 이모티콘 = 💬', freeOpt.textContent.includes('💬'), freeOpt.textContent);
+
+// 모달 크기
+const nModal = D.querySelector('#modal-notice .modal');
+check('공지 모달에 xl 클래스', nModal.classList.contains('xl'));
+check('가로 960px (480 x2)', /\.modal\.xl\{max-width:960px/.test(css));
+check('세로 여유 확대(92vh)', /\.modal\.xl\{[^}]*max-height:92vh/.test(css));
+check('내용 입력창 확대(min-height 330px)', /\.ta-lg\{min-height:330px/.test(css));
+check('입력창 rows 14', D.getElementById('nt-content').getAttribute('rows') === '14');
+check('제목/작성자/구분 3열 배치', D.querySelector('#modal-notice .row3') !== null);
+check('모바일에서 1열로 전환', /\.row3\{grid-template-columns:1fr\}/.test(css));
+
+// 자유 구분으로 공지 작성
+D.getElementById('nt-title').value = '점심 메뉴 추천';
+D.getElementById('nt-type').value = '자유';
+D.getElementById('nt-content').value = '오늘 뭐 먹을까요';
+click(D.getElementById('btn-notice-save'));
+const freeCard = [...D.querySelectorAll('#notice-list .ncard')]
+  .find(c => c.textContent.includes('점심 메뉴 추천'));
+check('자유 공지 등록됨', freeCard !== null);
+check('자유 카드에 type-자유 클래스', freeCard.classList.contains('type-자유'));
+check('자유 카드에 💬 표시', freeCard.querySelector('.n-type').textContent.includes('💬'),
+  freeCard.querySelector('.n-type').textContent);
+check('자유 카드 좌측 색상 정의', /\.ncard\.type-자유\{border-left/.test(css));
 
 sec('14. 팀원 인라인 수정');
 nav('members');
