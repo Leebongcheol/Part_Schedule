@@ -518,7 +518,7 @@ sec('13-1. 표 서식: 세로 구분선 / 열 너비 / 휴지통 버튼');
 check('데이터 표에 세로 구분선', /\.dtable td\{[^}]*border-right:1px solid/.test(css));
 check('헤더에도 세로 구분선', /\.dtable th\{[^}]*border-right:1px solid/.test(css));
 check('마지막 열은 세로선 제거', /\.dtable td:last-child\{border-right:none\}/.test(css));
-check('대시보드 표 고정 레이아웃', /#view-dashboard \.dtable\{table-layout:fixed\}/.test(css));
+check('대시보드 표 고정 레이아웃', /#view-dashboard \.dtable\{table-layout:fixed/.test(css));
 check('메인 업무 열이 가장 넓게(auto)', /th\.c-main\{width:auto\}/.test(css));
 check('메인 업무 폭 제한 제거', !/\.role-tx\{[^}]*max-width/.test(css));
 const dMain = D.querySelector('#dash-body td.c-main-td');
@@ -687,6 +687,44 @@ if (empty) {
     D.querySelector('#nv-body .nv-content').textContent.includes('내용이 없습니다'));
   click(D.querySelector('[data-close="modal-notice-view"]'));
 }
+
+sec('13-4. 대시보드 표: 화면 좁아질 때 열 겹침 방지');
+nav('dashboard');
+const dashTbl = D.querySelector('#view-dashboard .dtable');
+check('가로 스크롤 래퍼 안에 있음', dashTbl.closest('.twrap') !== null);
+check('래퍼가 overflow-x:auto', /\.twrap\{overflow-x:auto/.test(css));
+
+// min-width 가 있어야 좁아질 때 압축되지 않고 스크롤된다
+const mw = (css.match(/#view-dashboard \.dtable\{table-layout:fixed;min-width:(\d+)px\}/) || [])[1];
+check('대시보드 표에 min-width 지정', !!mw, 'min-width=' + mw);
+
+// 고정폭 합계 + 메인 업무 최소폭 <= min-width 인지 계산으로 확인
+const w = k => Number((css.match(new RegExp('th\\.c-' + k + '\\{width:(\\d+)px\\}')) || [])[1] || 0);
+const fixedSum = w('nm') + w('po') + w('at') + w('sup') + w('rm');
+check('고정폭 5열 모두 지정', fixedSum > 0, 'sum=' + fixedSum);
+check('메인 업무에 150px 이상 확보', Number(mw) - fixedSum >= 150,
+  `min-width ${mw} - 고정 ${fixedSum} = ${Number(mw) - fixedSum}px`);
+
+// 넘침 차단 (열 침범 방지)
+check('셀 overflow:hidden', /#view-dashboard \.dtable td\{[^}]*overflow:hidden/.test(css));
+check('지원 필요 래퍼로 감싸 클립', /\.sup-wrap\{[^}]*overflow:hidden/.test(css));
+check('비고 말줄임 처리', /#view-dashboard \.dtable \.rm\{[^}]*text-overflow:ellipsis/.test(css));
+
+// 지원 필요 셀 구조 확인 (래퍼 존재)
+const supTd = D.querySelector('#dash-body td.cell-preview[data-tasks$="|support"]');
+if (supTd) {
+  check('지원 필요 셀에 .sup-wrap 래퍼', supTd.querySelector('.sup-wrap') !== null);
+  check('래퍼 안에 칩과 건수', supTd.querySelector('.sup-wrap .sos-tag') !== null &&
+    supTd.querySelector('.sup-wrap .sos-cnt') !== null);
+}
+// 비고에 툴팁(잘려도 전체 내용 확인 가능)
+const rmEl = [...D.querySelectorAll('#dash-body .rm')].find(x => x.textContent.trim() !== '-');
+if (rmEl) check('비고에 title 툴팁', !!rmEl.getAttribute('title'), rmEl.getAttribute('title'));
+
+// 다른 표는 기존 방식 유지 (회귀 방지)
+check('주간표 min-width 유지', /\.wk-table\{[^}]*min-width:1000px/.test(css));
+check('월간표 min-width 유지', /\.mon-table\{min-width:560px\}/.test(css));
+check('월간 집계표는 고정폭 아님(자동)', !/#view-month \.dtable\{table-layout:fixed/.test(css));
 
 sec('14. 팀원 인라인 수정');
 nav('members');

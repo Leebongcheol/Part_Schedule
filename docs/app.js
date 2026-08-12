@@ -195,10 +195,13 @@ function remarkOf(mid) {
   if (!a) return '<span class="rm rm-none">-</span>';
   const long = a.days >= 4;
   const name = (long ? '장기' : '') + a.status;
-  if (a.dLeft === 0) return `<span class="rm rm-now">${name} 중${long ? ` (${a.days}일)` : ''}</span>`;
+  if (a.dLeft === 0) {
+    const t = `${name} 중${long ? ` (${a.days}일)` : ''}`;
+    return `<span class="rm rm-now" title="${esc(t)}">${t}</span>`;
+  }
   const label = `${name} D-${a.dLeft}` + (long ? ` (${a.days}일)` : '');
   const cls = long ? 'rm-long' : (a.dLeft <= 7 ? 'rm-soon' : 'rm-far');
-  return `<span class="rm ${cls}">${label}</span>`;
+  return `<span class="rm ${cls}" title="${esc(label)}">${label}</span>`;
 }
 
 
@@ -452,8 +455,8 @@ function renderDashboard() {
         : '<span class="role-none">- <small>(팀원 관리에서 입력)</small></span>'}</td>
       ${sup.length
         ? `<td class="cell-preview" data-tasks="${m.id}|support" title="${esc(sup.map(t => '· ' + t.title).join('\n'))}\n\n(클릭하여 상세 보기)">
-             <span class="sos-tag"><span class="dotb"></span>지원 필요</span>
-             <span class="sos-cnt"> ${sup.length}건</span></td>`
+             <div class="sup-wrap"><span class="sos-tag"><span class="dotb"></span>지원 필요</span>
+             <span class="sos-cnt">${sup.length}건</span></div></td>`
         : '<td><span class="cp-none">-</span></td>'}
       <td>${remarkOf(m.id)}</td>
     </tr>`;

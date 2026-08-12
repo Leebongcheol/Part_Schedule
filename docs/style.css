@@ -104,15 +104,22 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .dtable td:first-child{text-align:left}
 .dtable tbody tr:hover{background:var(--pri-l)}
 
-/* 대시보드 팀원별 현황: 이름·직책은 넓게, 메인 업무는 남는 폭 */
-#view-dashboard .dtable{table-layout:fixed}
+/* 대시보드 팀원별 현황: 이름·직책은 넓게, 메인 업무는 남는 폭
+   min-width 를 주어 화면이 좁아지면 열이 겹치지 않고 가로 스크롤이 생기게 한다
+   (주간표 min-width:1000px, 월간표 min-width:560px 와 동일한 방식) */
+#view-dashboard .dtable{table-layout:fixed;min-width:840px}
 #view-dashboard .dtable th.c-nm{width:144px}
 #view-dashboard .dtable th.c-po{width:138px}
 #view-dashboard .dtable th.c-at{width:76px}
 #view-dashboard .dtable th.c-main{width:auto}
-#view-dashboard .dtable th.c-sup{width:108px}
-#view-dashboard .dtable th.c-rm{width:120px}
-#view-dashboard .dtable td{padding:9px 10px}
+#view-dashboard .dtable th.c-sup{width:140px}
+#view-dashboard .dtable th.c-rm{width:138px}
+#view-dashboard .dtable td{padding:9px 10px;overflow:hidden}
+
+/* 칸을 넘치더라도 옆 열을 침범하지 않게 잘라낸다 */
+.sup-wrap{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden}
+.sup-wrap .sos-tag{flex-shrink:0}
+#view-dashboard .dtable .rm{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 
 /* --- Badges --- */
 .badge{display:inline-block;padding:3px 12px;border-radius:14px;font-size:.8125rem;
