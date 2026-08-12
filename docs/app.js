@@ -459,26 +459,33 @@ function renderDashboard() {
     </tr>`;
   }).join('') || '<tr><td colspan="6" class="none-txt">팀원이 없습니다</td></tr>';
 
-  // Alerts
+  // Alerts (클릭하면 상세 확인)
   let aHtml = '';
   members.forEach(m => {
     const k = stat(m.id);
-    if (k.need) aHtml += `<div class="alert-item">🔴 <b>${esc(m.name)}</b> · 진행중 ${k.open}건${k.sup?' · 지원요청':''}</div>`;
+    if (k.need) aHtml += `<div class="alert-item" data-tasks="${m.id}|support" `
+      + `title="${esc(m.name)} 지원 필요 업무 보기">🔴 <b>${esc(m.name)}</b> · 진행중 ${k.open}건${k.sup?' · 지원요청':''}</div>`;
   });
   todos.filter(t => !t.done).forEach(t => {
     const d = daysLeft(t.dueDate);
     if (d !== null && d <= 2) {
       const m = members.find(x => x.id === t.assigneeId);
       const lb = d < 0 ? `${-d}일 지남` : (d === 0 ? '오늘 마감' : `${d}일 남음`);
-      aHtml += `<div class="alert-item due">⏰ <b>${esc(t.title)}</b> · ${m?esc(m.name):'미지정'} · ${lb}</div>`;
+      aHtml += `<div class="alert-item due" data-open-task="${t.id}" title="업무 상세 보기">`
+        + `⏰ <b>${esc(t.title)}</b> · ${m?esc(m.name):'미지정'} · ${lb}</div>`;
     }
   });
   $('dash-alerts').innerHTML = aHtml || '<div class="none-txt">특이사항 없습니다 ✅</div>';
 
-  // Recent notices
+  // Recent notices (클릭하면 전문 확인)
+  const NICON = { '공지': '📢', '회의록': '📝', '메모': '💡', '자유': '💬' };
   $('dash-notices').innerHTML = noticesSorted().slice(0, 3).map(n => {
     const d = new Date(n.date);
-    return `<div class="mini-notice"><b>${esc(n.title)}</b><span>${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} · ${esc(n.author||'-')}</span></div>`;
+    const preview = (n.content || '').replace(/\s+/g, ' ').trim();
+    return `<div class="mini-notice" data-notice="${n.id}" title="클릭하여 전문 보기">`
+      + `<b>${NICON[n.type] || '📢'} ${esc(n.title)}</b>`
+      + (preview ? `<em class="mn-pv">${esc(preview)}</em>` : '')
+      + `<span>${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} · ${esc(n.author||'-')}</span></div>`;
   }).join('') || '<div class="none-txt">공지 없음</div>';
 }
 
@@ -813,6 +820,25 @@ function saveNoticeModal() {
   closeModal('modal-notice'); renderNotices(); renderDashboard();
 }
 
+/** 공지 전문 보기 (읽기 전용) */
+function openNoticeView(id) {
+  const n = notices.find(x => x.id === id);
+  if (!n) return;
+  const icon = { '공지': '📢', '회의록': '📝', '메모': '💡', '자유': '💬' };
+  const d = new Date(n.date);
+  const ds = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`
+           + ` ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  $('nv-body').innerHTML = `
+    <div class="nv-top">
+      <span class="n-type">${icon[n.type] || '📢'} ${esc(n.type || '공지')}</span>
+      <h4 class="nv-title">${esc(n.title)}</h4>
+    </div>
+    <div class="nv-meta">✍️ ${esc(n.author || '-')} · ${ds}${n.editedAt ? ' (수정됨)' : ''}</div>
+    <div class="nv-content">${n.content ? esc(n.content) : '<span class="none-txt">내용이 없습니다.</span>'}</div>`;
+  $('nv-body').dataset.id = id;
+  openModal('modal-notice-view');
+}
+
 // ===== Member modal =====
 function openMemberModal() {
   $('mb-name').value = ''; $('mb-position').value = '선임연구원';
@@ -913,6 +939,25 @@ function bind() {
   $('dash-body').addEventListener('click', e => {
     const c = e.target.closest('[data-tasks]');
     if (c) { const [mid, kind] = c.dataset.tasks.split('|'); openTasks(mid, kind); }
+  });
+
+  // 대시보드 우측: 지원 필요 / 마감 임박 클릭 -> 상세
+  $('dash-alerts').addEventListener('click', e => {
+    const op = e.target.closest('[data-open-task]');
+    if (op) { openOneTask(op.dataset.openTask); return; }
+    const tk = e.target.closest('[data-tasks]');
+    if (tk) { const [mid, kind] = tk.dataset.tasks.split('|'); openTasks(mid, kind); }
+  });
+
+  // 대시보드 우측: 최근 공지 클릭 -> 전문 보기
+  $('dash-notices').addEventListener('click', e => {
+    const nv = e.target.closest('[data-notice]');
+    if (nv) openNoticeView(nv.dataset.notice);
+  });
+  $('btn-nv-edit').addEventListener('click', () => {
+    const id = $('nv-body').dataset.id;
+    closeModal('modal-notice-view');
+    if (id) openNotice(id);
   });
 
   // 업무 상세 모달 내 동작

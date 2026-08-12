@@ -592,6 +592,102 @@ check('자유 카드에 💬 표시', freeCard.querySelector('.n-type').textCont
   freeCard.querySelector('.n-type').textContent);
 check('자유 카드 좌측 색상 정의', /\.ncard\.type-자유\{border-left/.test(css));
 
+sec('13-3. 대시보드 우측 패널: 클릭하여 상세 확인');
+// 앞 단계에서 지원필요 업무가 완료 처리되었으므로 새로 하나 등록
+const dIds = memberIds();
+nav('week');
+addTodoUI({ title: '치구 제작 지원 요청', mid: dIds[3], start: MON, support: true });
+nav('dashboard');
+
+// --- 지원 필요 알림 ---
+const supAlert = D.querySelector('#dash-alerts .alert-item[data-tasks]');
+check('지원 필요 알림 존재', supAlert !== null);
+check('클릭 가능 표시(cursor pointer)', /\.alert-item\{[^}]*cursor:pointer/.test(css));
+check('클릭 유도 화살표', /\.alert-item::after\{content:'›'/.test(css));
+check('title 안내 존재', (supAlert.getAttribute('title') || '').includes('지원 필요'),
+  supAlert.getAttribute('title'));
+click(supAlert);
+check('지원 필요 클릭 -> 업무 모달 열림', D.getElementById('modal-tasks').hidden === false);
+check('모달 제목에 지원 필요',
+  D.getElementById('tasks-title').textContent.includes('지원 필요'),
+  D.getElementById('tasks-title').textContent);
+check('모달에 업무 내용 표시', D.querySelector('#tasks-body .tk-title') !== null);
+click(D.querySelector('[data-close="modal-tasks"]'));
+check('모달 닫힘', D.getElementById('modal-tasks').hidden === true);
+
+// --- 마감 임박 알림 ---
+// 오늘 마감인 업무를 만들어 알림에 뜨게 함
+nav('week');
+addTodoUI({ title: '오늘 마감 보고서', mid: dIds[2], start: MON, due: ymd(0) });
+nav('dashboard');
+const dueAlert = D.querySelector('#dash-alerts .alert-item.due[data-open-task]');
+check('마감 임박 알림 생성', dueAlert !== null);
+check('알림에 업무명 표시', dueAlert.textContent.includes('오늘 마감 보고서'), dueAlert.textContent.trim());
+click(dueAlert);
+check('마감 임박 클릭 -> 업무 상세 열림', D.getElementById('modal-tasks').hidden === false);
+check('해당 업무 1건 표시', D.querySelectorAll('#tasks-body .tk').length === 1);
+check('제목 전문 표시',
+  D.querySelector('#tasks-body .tk-title').textContent === '오늘 마감 보고서',
+  D.querySelector('#tasks-body .tk-title').textContent);
+click(D.querySelector('[data-close="modal-tasks"]'));
+
+// --- 최근 공지 ---
+const LONGNOTE = '1. 금요일 14시 회의\n2. 낙하시험 결과 공유\n3. 포장 사양서 개정안 검토';
+nav('notice');
+click(D.getElementById('btn-add-notice'));
+D.getElementById('nt-title').value = '주간 회의 안건';
+D.getElementById('nt-type').value = '회의록';
+D.getElementById('nt-content').value = LONGNOTE;
+click(D.getElementById('btn-notice-save'));
+
+nav('dashboard');
+const mini = [...D.querySelectorAll('#dash-notices .mini-notice')]
+  .find(x => x.textContent.includes('주간 회의 안건'));
+check('최근 공지에 표시', mini !== null);
+check('구분 아이콘 표시(회의록)', mini.querySelector('b').textContent.includes('📝'),
+  mini.querySelector('b').textContent);
+check('본문 미리보기 한 줄 표시', mini.querySelector('.mn-pv') !== null);
+check('미리보기는 말줄임', /\.mn-pv\{[^}]*text-overflow:ellipsis/.test(css));
+check('클릭 가능 표시', /\.mini-notice\{[^}]*cursor:pointer/.test(css));
+
+click(mini);
+check('공지 클릭 -> 상세 모달 열림', D.getElementById('modal-notice-view').hidden === false);
+const nv = D.getElementById('nv-body');
+check('제목 표시', nv.querySelector('.nv-title').textContent === '주간 회의 안건',
+  nv.querySelector('.nv-title').textContent);
+check('구분 배지 표시', nv.querySelector('.n-type').textContent.includes('회의록'));
+check('작성일 표시', /\d{4}\.\d{2}\.\d{2}/.test(nv.querySelector('.nv-meta').textContent),
+  nv.querySelector('.nv-meta').textContent);
+check('본문 전문 표시(3줄 모두)',
+  nv.querySelector('.nv-content').textContent.includes('포장 사양서 개정안 검토'));
+check('줄바꿈 보존 CSS', /\.nv-content\{[^}]*white-space:pre-wrap/.test(css));
+
+// 상세에서 수정으로 연결
+click(D.getElementById('btn-nv-edit'));
+check('수정 클릭 시 상세 닫힘', D.getElementById('modal-notice-view').hidden === true);
+check('수정 모달 열림', D.getElementById('modal-notice').hidden === false);
+check('기존 값 로드', D.getElementById('nt-title').value === '주간 회의 안건');
+check('구분도 로드', D.getElementById('nt-type').value === '회의록');
+click(D.querySelector('[data-close="modal-notice"]'));
+
+// 내용 없는 공지도 안전하게 열림
+nav('notice');
+click(D.getElementById('btn-add-notice'));
+D.getElementById('nt-title').value = '내용 없는 공지';
+D.getElementById('nt-content').value = '';
+click(D.getElementById('btn-notice-save'));
+nav('dashboard');
+const empty = [...D.querySelectorAll('#dash-notices .mini-notice')]
+  .find(x => x.textContent.includes('내용 없는 공지'));
+if (empty) {
+  check('내용 없으면 미리보기 생략', empty.querySelector('.mn-pv') === null);
+  click(empty);
+  check('내용 없는 공지도 모달 열림', D.getElementById('modal-notice-view').hidden === false);
+  check('내용 없음 안내 표시',
+    D.querySelector('#nv-body .nv-content').textContent.includes('내용이 없습니다'));
+  click(D.querySelector('[data-close="modal-notice-view"]'));
+}
+
 sec('14. 팀원 인라인 수정');
 nav('members');
 check('8행 렌더', D.querySelectorAll('#member-body tr').length === 8);

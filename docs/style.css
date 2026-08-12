@@ -406,11 +406,30 @@ tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1
 .panel{background:#fff;border:1px solid var(--g200);border-radius:var(--rad);padding:18px}
 .panel h3{font-size:1rem;font-weight:600;margin-bottom:12px}
 .alert-item{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--dan-l);
-  border-radius:7px;margin-bottom:7px;font-size:.875rem;font-weight:500}
+  border-radius:7px;margin-bottom:7px;font-size:.875rem;font-weight:500;
+  cursor:pointer;transition:transform .12s,box-shadow .12s}
+.alert-item:hover{transform:translateX(2px);box-shadow:0 2px 8px rgba(220,38,38,.18)}
 .alert-item.due{background:#fffbeb}
-.mini-notice{padding:9px 12px;background:var(--g50);border-radius:7px;margin-bottom:6px;font-size:.875rem}
-.mini-notice b{display:block;font-size:.9375rem;margin-bottom:2px}
+.alert-item.due:hover{box-shadow:0 2px 8px rgba(217,119,6,.2)}
+.alert-item::after{content:'›';margin-left:auto;color:var(--g400);font-size:1.1rem;font-weight:700}
+
+.mini-notice{padding:10px 12px;background:var(--g50);border-radius:7px;margin-bottom:6px;
+  font-size:.875rem;cursor:pointer;border:1px solid transparent;
+  transition:border-color .12s,background .12s}
+.mini-notice:hover{background:var(--pri-l);border-color:var(--pri)}
+.mini-notice b{display:block;font-size:.9375rem;margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mn-pv{display:block;font-style:normal;color:var(--g600);font-size:.8125rem;
+  margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mini-notice span{color:var(--g400);font-size:.75rem}
+
+/* 공지 상세 보기 모달 */
+.nv-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.nv-title{font-size:1.125rem;font-weight:700;word-break:break-word;line-height:1.45}
+.nv-meta{font-size:.8125rem;color:var(--g400);padding-bottom:12px;
+  border-bottom:1px solid var(--g200);margin-bottom:14px}
+.nv-content{font-size:.9375rem;color:var(--g800);white-space:pre-wrap;word-break:break-word;
+  line-height:1.75;max-height:56vh;overflow-y:auto}
 .none-txt{color:var(--g400);font-size:.875rem;padding:12px;text-align:center}
 
 
