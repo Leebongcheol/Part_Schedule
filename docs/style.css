@@ -85,26 +85,34 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 
 /* --- Tables --- */
 .twrap{overflow-x:auto;border-radius:var(--rad)}
-.sch-table,.dtable{width:100%;border-collapse:collapse;background:#fff;box-shadow:var(--sh);border-radius:var(--rad);overflow:hidden}
-.sch-table th,.dtable th{
-  padding:12px 12px;font-size:.875rem;font-weight:600;text-align:center;
+/* 데이터 표 (대시보드 / 월간 집계 / 팀원 관리) */
+.dtable{width:100%;border-collapse:collapse;background:#fff;box-shadow:var(--sh);
+  border-radius:var(--rad);overflow:hidden}
+.dtable th{
+  padding:11px 12px;font-size:.8125rem;font-weight:600;text-align:center;
   background:var(--pri);color:#fff;white-space:nowrap;
+  border-right:1px solid rgba(255,255,255,.25);
 }
-.sch-table th.c-name,.dtable th:first-child{text-align:left}
-.sch-table th.c-name{width:130px}
-.sch-table th.c-day{width:92px}
-.sch-table th.c-todo{width:auto;min-width:230px;text-align:left}
-.sch-table td,.dtable td{
-  padding:11px 12px;text-align:center;border-bottom:1px solid var(--g100);
-  vertical-align:middle;font-size:.9375rem;
+.dtable th:last-child{border-right:none}
+.dtable th:first-child{text-align:left}
+.dtable td{
+  padding:10px 12px;text-align:center;vertical-align:middle;font-size:.9375rem;
+  border-bottom:1px solid var(--g200);
+  border-right:1px solid var(--g200);      /* 열 구분 세로줄 */
 }
-.sch-table td:first-child,.dtable td:first-child{text-align:left}
-.sch-table tbody tr:hover,.dtable tbody tr:hover{background:var(--pri-l)}
-.sch-table td.clk{cursor:pointer}
-.sch-table td.clk:hover{background:#dbeafe}
-.sch-table th.today{background:var(--pri-d)}
-.sch-table td.todo-cell{text-align:left;cursor:pointer;padding:8px 12px}
-.sch-table td.todo-cell:hover{background:#dbeafe}
+.dtable td:last-child{border-right:none}
+.dtable td:first-child{text-align:left}
+.dtable tbody tr:hover{background:var(--pri-l)}
+
+/* 대시보드 팀원별 현황: 메인 업무에 가장 넓은 폭 배분 */
+#view-dashboard .dtable{table-layout:fixed}
+#view-dashboard .dtable th.c-nm{width:96px}
+#view-dashboard .dtable th.c-po{width:92px}
+#view-dashboard .dtable th.c-at{width:76px}
+#view-dashboard .dtable th.c-main{width:auto}
+#view-dashboard .dtable th.c-sup{width:108px}
+#view-dashboard .dtable th.c-rm{width:120px}
+#view-dashboard .dtable td{padding:9px 10px}
 
 /* --- Badges --- */
 .badge{display:inline-block;padding:3px 12px;border-radius:14px;font-size:.8125rem;
@@ -159,9 +167,6 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .tk-group-h:first-child{margin-top:0}
 
 /* --- 출근 녹색 원 --- */
-.work-dot{display:inline-block;width:14px;height:14px;border-radius:50%;
-  background:var(--suc);box-shadow:0 0 0 3px rgba(22,163,74,.16);vertical-align:middle}
-.sch-table td.clk .work-dot{width:15px;height:15px}
 .lg-work{display:inline-flex;align-items:center;gap:6px;font-size:.875rem;color:var(--g600);font-weight:500}
 
 /* --- 섹션 분리 --- */
@@ -300,9 +305,19 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .dc-more{font-size:.6875rem;color:var(--pri);font-weight:700;cursor:pointer;padding-left:3px}
 .dc-more:hover{text-decoration:underline}
 
+.fg-hint{font-size:.75rem;color:var(--g400);margin:-6px 0 12px;line-height:1.5}
+
+/* 휴지통 버튼 (삭제) */
+.trash{border:1px solid transparent;background:none;cursor:pointer;
+  font-size:1rem;line-height:1;padding:5px 8px;border-radius:6px;
+  color:var(--g400);transition:all .12s}
+.trash:hover{background:var(--dan-l);border-color:#fecaca;color:var(--dan)}
+.trash:active{transform:scale(.94)}
+
 /* 대시보드 메인 업무(역할) 셀 */
-.role-tx{display:block;max-width:230px;overflow:hidden;text-overflow:ellipsis;
-  white-space:nowrap;font-weight:500}
+.dtable td.c-main-td{text-align:left}
+.role-tx{display:block;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:500;text-align:left}
 .role-none{color:var(--g300);font-size:.8125rem}
 .prog-cnt{font-size:.75rem;color:var(--g400);white-space:nowrap}
 
@@ -387,7 +402,7 @@ tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1
 .card.alert .card-val{color:var(--dan)}
 
 /* --- Panels --- */
-.dgrid{display:grid;grid-template-columns:1.7fr 1fr;gap:18px}
+.dgrid{display:grid;grid-template-columns:2.4fr 1fr;gap:18px}
 .panel{background:#fff;border:1px solid var(--g200);border-radius:var(--rad);padding:18px}
 .panel h3{font-size:1rem;font-weight:600;margin-bottom:12px}
 .alert-item{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--dan-l);
@@ -553,7 +568,7 @@ textarea.inp{resize:vertical}
   .main{margin-left:0;padding:0}
   .view{display:block!important;break-inside:avoid;margin-bottom:24px}
   .vhead{border-bottom:2px solid #333;padding-bottom:6px}
-  .sch-table th,.dtable th{background:#ddd!important;color:#000;
+  .wk-table th,.dtable th,.mon-table th{background:#ddd!important;color:#000;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
   .badge,.chip{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .panel,.card{border:1px solid #ccc;box-shadow:none}

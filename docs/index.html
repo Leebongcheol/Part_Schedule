@@ -148,7 +148,7 @@
                         <h3>팀원별 현황</h3>
                         <div class="twrap">
                             <table class="dtable">
-                                <thead><tr><th>이름</th><th>직책</th><th>오늘 근태</th><th>메인 업무</th><th>지원 필요</th><th>비고</th></tr></thead>
+                                <thead><tr><th class="c-nm">이름</th><th class="c-po">직책</th><th class="c-at">오늘 근태</th><th class="c-main">메인 업무</th><th class="c-sup">지원 필요</th><th class="c-rm">비고</th></tr></thead>
                                 <tbody id="dash-body"></tbody>
                             </table>
                         </div>
@@ -207,11 +207,12 @@
                     <h3>📆 주간 스케줄 (근태 + 업무)</h3>
                     <ul>
                         <li>팀원 1명 = 1행. <b>요일 칸에 그 날 업무를 넣습니다</b></li>
-                        <li><b>칸 클릭</b> 또는 <b>+</b> → 그 팀원·그 날짜로 업무 추가 (마감일이 자동 입력됩니다)</li>
+                        <li><b>칸 클릭</b> 또는 <b>+</b> → 그 팀원·그 날짜로 업무 추가 (<b>수행일</b>이 자동 입력됩니다)</li>
+                        <li>업무는 <b>수행일(시작일) 기준</b>으로 해당 요일 칸에 표시됩니다. 마감일은 선택 입력입니다</li>
                         <li><b>업무 제목 클릭</b> → 전체 내용 보기 / <b>체크박스</b> → 완료</li>
                         <li>근태는 <b>출장·휴가·교육·기타만 칩으로 표시</b>됩니다. 표시가 없으면 출근입니다</li>
                         <li>근태를 넣으려면 칸에 마우스를 올려 나타나는 <b>[근태]</b> 버튼을 누르세요</li>
-                        <li>마감일이 없는 업무는 팀원 칸에 <b>📋 미지정</b> 배지로 모아 표시됩니다</li>
+                        <li>수행일이 없는 업무는 팀원 칸에 <b>📋 미지정</b> 배지로 모아 표시됩니다</li>
                         <li><b>🔴 지원 필요</b>로 등록된 업무가 있으면 그 팀원 행이 붉게 점멸합니다</li>
                     </ul>
                 </div>
@@ -317,9 +318,10 @@
                 </select></div>
             </div>
             <div class="row2">
-                <div class="fg"><label>시작일</label><input type="date" class="inp" id="td-start"></div>
-                <div class="fg"><label>마감일</label><input type="date" class="inp" id="td-due"></div>
+                <div class="fg"><label>수행일 (시작일) *</label><input type="date" class="inp" id="td-start"></div>
+                <div class="fg"><label>마감일 (선택)</label><input type="date" class="inp" id="td-due"></div>
             </div>
+            <p class="fg-hint">주간 스케줄에는 <b>수행일</b> 기준으로 표시됩니다. 마감일은 필요할 때만 입력하세요.</p>
             <div class="fg"><label class="ck"><input type="checkbox" id="td-support"> 🔴 지원 필요 (업무 과부하 / 협업 요청)</label></div>
             <div class="fg"><label>내용</label><textarea class="inp" id="td-desc" rows="3" placeholder="업무 상세 내용"></textarea></div>
         </div>

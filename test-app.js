@@ -159,13 +159,14 @@ const wkDates = [...D.querySelectorAll('#sch-body tr:first-child td.w-cell')]
   .map(c => c.dataset.add.split('|')[1]);
 const MON = wkDates[0], TUE = wkDates[1];
 
-function addTodoUI({ title, mid, priority = 'medium', support = false, desc = '', due = '' }) {
+function addTodoUI({ title, mid, priority = 'medium', support = false, desc = '', start = '', due = '' }) {
   click(D.getElementById('btn-add-todo'));
   D.getElementById('td-title').value = title;
   if (mid) D.getElementById('td-assignee').value = mid;
   D.getElementById('td-priority').value = priority;
   D.getElementById('td-support').checked = support;
   D.getElementById('td-desc').value = desc;
+  D.getElementById('td-start').value = start;   // 주간 표시는 수행일(시작일) 기준
   D.getElementById('td-due').value = due;
   click(D.getElementById('btn-todo-save'));
 }
@@ -185,7 +186,9 @@ check('칸마다 + 버튼', D.querySelectorAll('#sch-body .dc-add').length === 3
 // 칸의 + 버튼 → 담당자 + 날짜 프리셋
 click(cellOf(ids0[1], TUE).querySelector('.dc-add'));
 check('+ 클릭 시 담당자 자동 지정', D.getElementById('td-assignee').value === ids0[1]);
-check('+ 클릭 시 날짜 자동 지정(마감일)', D.getElementById('td-due').value === TUE,
+check('+ 클릭 시 수행일 자동 지정', D.getElementById('td-start').value === TUE,
+  D.getElementById('td-start').value);
+check('마감일은 기본 비어있음', D.getElementById('td-due').value === '',
   D.getElementById('td-due').value);
 check('모달 제목에 날짜 표시', D.getElementById('todo-modal-title').textContent.includes(TUE),
   D.getElementById('todo-modal-title').textContent);
@@ -194,14 +197,15 @@ click(D.querySelector('[data-close="modal-todo"]'));
 // 빈 곳(칸 자체) 클릭도 추가
 click(cellOf(ids0[0], MON));
 check('빈 곳 클릭도 추가 모달', D.getElementById('modal-todo').hidden === false);
-check('날짜 프리셋 동일', D.getElementById('td-due').value === MON);
+check('수행일 프리셋 동일', D.getElementById('td-start').value === MON);
+check('마감일 여전히 비어있음', D.getElementById('td-due').value === '');
 click(D.querySelector('[data-close="modal-todo"]'));
 
-addTodoUI({ title: LONG, mid: ids0[0], priority: 'high', support: true, desc: LONGDESC, due: MON });
-addTodoUI({ title: '2차 시험 준비', mid: ids0[0], due: MON });
-addTodoUI({ title: '1차 보고서 제출', mid: ids0[0], priority: 'low', due: TUE });
-addTodoUI({ title: '치구 도면 검토', mid: ids0[1], due: TUE });
-addTodoUI({ title: '마감일 없는 업무', mid: ids0[0] });
+addTodoUI({ title: LONG, mid: ids0[0], priority: 'high', support: true, desc: LONGDESC, start: MON });
+addTodoUI({ title: '2차 시험 준비', mid: ids0[0], start: MON });
+addTodoUI({ title: '1차 보고서 제출', mid: ids0[0], priority: 'low', start: TUE });
+addTodoUI({ title: '치구 도면 검토', mid: ids0[1], start: TUE });
+addTodoUI({ title: '수행일 없는 업무', mid: ids0[0] });
 
 check('할 일 5건 저장', todosOf().length === 5, 'got=' + todosOf().length);
 check('월요일 칸에 2건', cellOf(ids0[0], MON).querySelectorAll('.dt').length === 2,
@@ -209,8 +213,10 @@ check('월요일 칸에 2건', cellOf(ids0[0], MON).querySelectorAll('.dt').leng
 check('화요일 칸에 1건', cellOf(ids0[0], TUE).querySelectorAll('.dt').length === 1);
 check('다른 팀원 화요일 칸에 1건', cellOf(ids0[1], TUE).querySelectorAll('.dt').length === 1);
 check('다른 팀원 월요일 칸은 비어있음', cellOf(ids0[1], MON).querySelectorAll('.dt').length === 0);
-check('마감일 없는 업무는 팀원칸에 배지로 표시',
+check('수행일 없는 업무는 팀원칸에 배지로 표시',
   rowOf(ids0[0]).querySelector('.wk-undated') !== null);
+check('마감일만 있고 수행일 없으면 요일 칸에 안 보임 (배지로 이동)',
+  cellOf(ids0[0], MON).querySelectorAll('.dt').length === 2);
 check('미지정 배지에 건수 표시',
   rowOf(ids0[0]).querySelector('.wk-undated').textContent.includes('1'),
   rowOf(ids0[0]).querySelector('.wk-undated').textContent);
@@ -507,6 +513,28 @@ check('수정 반영', D.querySelector('#notice-list h4').textContent === '주�
 check('수정됨 표기', D.querySelector('#notice-list .n-meta').textContent.includes('수정됨'));
 check('대시보드 최근공지 반영', (nav('dashboard'),
   D.getElementById('dash-notices').textContent.includes('주간 회의 안내')));
+
+sec('13-1. 표 서식: 세로 구분선 / 열 너비 / 휴지통 버튼');
+check('데이터 표에 세로 구분선', /\.dtable td\{[^}]*border-right:1px solid/.test(css));
+check('헤더에도 세로 구분선', /\.dtable th\{[^}]*border-right:1px solid/.test(css));
+check('마지막 열은 세로선 제거', /\.dtable td:last-child\{border-right:none\}/.test(css));
+check('대시보드 표 고정 레이아웃', /#view-dashboard \.dtable\{table-layout:fixed\}/.test(css));
+check('메인 업무 열이 가장 넓게(auto)', /th\.c-main\{width:auto\}/.test(css));
+check('메인 업무 폭 제한 제거', !/\.role-tx\{[^}]*max-width/.test(css));
+const dMain = D.querySelector('#dash-body td.c-main-td');
+check('메인 업무 셀 클래스 적용', dMain !== null);
+check('메인 업무 좌측 정렬', /\.dtable td\.c-main-td\{text-align:left\}/.test(css));
+check('대시보드 표 영역 확대(2.4fr)', /\.dgrid\{[^}]*2\.4fr 1fr/.test(css));
+check('구버전 sch-table CSS 제거', !/\.sch-table/.test(css));
+
+nav('members');
+const trash = D.querySelector('#member-body .trash');
+check('삭제는 휴지통 아이콘 버튼', trash !== null);
+check('휴지통에 🗑 문자', trash.textContent.includes('🗑'), trash.textContent);
+check('빨간 채움 버튼 아님', !trash.classList.contains('dbtn'));
+check('평상시 회색, 호버 시 빨강', /\.trash\{[^}]*color:var\(--g400\)/.test(css) &&
+  /\.trash:hover\{[^}]*color:var\(--dan\)/.test(css));
+check('접근성 라벨 존재', !!trash.getAttribute('aria-label'));
 
 sec('14. 팀원 인라인 수정');
 nav('members');

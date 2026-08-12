@@ -177,7 +177,7 @@ async function main() {
   B.D.getElementById('td-title').value = '낙하 시험 조건 검토';
   B.D.getElementById('td-assignee').value = bIds[1];
   B.D.getElementById('td-support').checked = true;
-  B.D.getElementById('td-due').value = aDate;   // 요일 칸에 표시되도록 마감일 지정
+  B.D.getElementById('td-start').value = aDate;  // 요일 칸에 표시되도록 수행일 지정
   B.click('#btn-todo-save');
   await tick();
 
@@ -359,7 +359,7 @@ async function main() {
 
   N2.click('#btn-add-todo');
   N2.D.getElementById('td-title').value = '익명 모드 업무';
-  N2.D.getElementById('td-due').value = N2.D.querySelector('#sch-body .att-ghost').dataset.att.split('|')[1];
+  N2.D.getElementById('td-start').value = N2.D.querySelector('#sch-body .att-ghost').dataset.att.split('|')[1];
   click2(N2);
   await tick();
   check('★ 반대 방향 전파도 정상',

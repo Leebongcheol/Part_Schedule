@@ -344,12 +344,12 @@ function renderCalendar() {
     html += `<tr class="${wl.need ? 'sos' : ''}">`;
 
     // 팀원
-    const undated = todos.filter(t => t.assigneeId === m.id && !t.dueDate && !t.done).length;
+    const undated = todos.filter(t => t.assigneeId === m.id && !t.startDate && !t.done).length;
     html += `<td class="w-mem"><div class="wk-mem"><span class="mdot" style="background:${m.color}"></span>`
           + `<span class="wk-mem-n">${esc(m.name)}</span></div>`
           + `<span class="wk-mem-p">${esc(m.position)}</span>`
           + (wl.need ? '<span class="sos-tag"><span class="dotb"></span>지원 필요</span>' : '')
-          + (undated ? `<span class="wk-undated" data-tasks="${m.id}|open" title="마감일이 지정되지 않은 업무">📋 미지정 ${undated}</span>` : '')
+          + (undated ? `<span class="wk-undated" data-tasks="${m.id}|open" title="시작일(수행일)이 지정되지 않은 업무">📋 미지정 ${undated}</span>` : '')
           + '</td>';
 
     // 요일 칸 (근태 최소 표시 + 업무)
@@ -363,7 +363,8 @@ function renderCalendar() {
         ? `<button class="att-mini ${ATT_CLS[s.status] || 'att-etc'}" data-att="${m.id}|${ds}" title="${esc(s.status + (s.note ? ' · ' + s.note : ''))} (클릭하여 변경)">${s.status}${s.note ? '*' : ''}</button>`
         : `<button class="att-ghost" data-att="${m.id}|${ds}" title="근태 입력 (현재: 출근)">근태</button>`;
 
-      const all = todos.filter(t => t.assigneeId === m.id && t.dueDate === ds).filter(passFilter);
+      // 주간 스케줄은 '시작일(수행일)' 기준으로 배치한다
+      const all = todos.filter(t => t.assigneeId === m.id && t.startDate === ds).filter(passFilter);
       all.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
       const shown = all.slice(0, MAX_PER_CELL);
 
@@ -446,7 +447,7 @@ function renderDashboard() {
       <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
       <td>${esc(m.position)}</td>
       <td><span class="badge ${cls}">${st}</span></td>
-      <td>${role
+      <td class="c-main-td">${role
         ? `<span class="role-tx" title="${esc(role)}">${esc(role)}</span>`
         : '<span class="role-none">- <small>(팀원 관리에서 입력)</small></span>'}</td>
       ${sup.length
@@ -589,7 +590,7 @@ function renderMembers() {
       <td class="edit-cell" data-field="role">${esc(m.role) || '<span style="color:#cbd5e1">담당 업무 입력</span>'}</td>
       <td class="edit-cell" data-field="empNo">${esc(m.empNo) || '<span style="color:#cbd5e1">-</span>'}</td>
       <td class="edit-cell" data-field="email">${esc(m.email) || '<span style="color:#cbd5e1">-</span>'}</td>
-      <td><button class="dbtn" data-del-member="${m.id}">삭제</button></td>
+      <td><button class="trash" data-del-member="${m.id}" title="${esc(m.name)} 삭제" aria-label="${esc(m.name)} 삭제">🗑</button></td>
     </tr>`).join('') || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다.</td></tr>';
 }
 
@@ -738,8 +739,8 @@ function openTodo(presetMid, editId, presetDate) {
     $('td-title').value = '';
     if (presetMid) sel.value = presetMid;
     $('td-priority').value = 'medium';
-    $('td-start').value = '';
-    $('td-due').value = presetDate || '';   // 클릭한 날짜를 마감일로 미리 채움
+    $('td-start').value = presetDate || '';  // 클릭한 날짜 = 수행일(시작일)
+    $('td-due').value = '';                  // 마감일은 기본 없음 (필요할 때만 입력)
     $('td-support').checked = false;
     $('td-desc').value = '';
   }
@@ -750,7 +751,7 @@ function openTodo(presetMid, editId, presetDate) {
 /** 특정 날짜의 팀원 업무 전체 보기 */
 function openDayTasks(mid, ds) {
   const m = members.find(x => x.id === mid);
-  const list = todos.filter(t => t.assigneeId === mid && t.dueDate === ds);
+  const list = todos.filter(t => t.assigneeId === mid && t.startDate === ds);
   const po = { high: 0, medium: 1, low: 2 };
   list.sort((a, b) => (a.done - b.done) || (po[a.priority] ?? 1) - (po[b.priority] ?? 1));
   $('tasks-title').textContent = `${m ? m.name : ''} · ${ds} 업무 (${list.length}건)`;
