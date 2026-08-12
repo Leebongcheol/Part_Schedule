@@ -29,11 +29,36 @@
 
 ## 3. 웹 앱 등록 & 설정값 복사
 
-1. 좌측 상단 **프로젝트 개요** 옆 ⚙️ → **프로젝트 설정**
-2. 아래 **내 앱** 에서 **웹 아이콘 `</>`** 클릭
-3. 앱 닉네임 `part-schedule-web` 입력 → **앱 등록**
-   (Firebase 호스팅은 체크하지 않음 — GitHub Pages를 사용합니다)
-4. 표시되는 `firebaseConfig` 값을 복사
+> ⚠️ **앱 등록은 "설정" 메뉴가 아니라 "프로젝트 개요" 페이지에서 합니다.**
+> 설정 → *내 앱* 목록은 **이미 등록된 앱만** 보여주므로, 앱이 없으면 그 항목 자체가 보이지 않습니다.
+
+1. 좌측 맨 위 **프로젝트 개요(Project Overview)** 를 클릭해 홈 화면으로 이동
+2. 화면 **중앙**에 플랫폼 아이콘들이 보입니다 → **웹 아이콘 `</>`** 클릭
+   - 아이콘이 안 보이면 **앱 추가(Add app)** 버튼을 누르면 플랫폼 목록이 나옵니다
+   - 아래 직접 링크로 가도 됩니다 (`PROJECT_ID`를 본인 값으로 교체):
+     `https://console.firebase.google.com/project/PROJECT_ID/overview`
+3. 앱 닉네임 `part-schedule-web` 입력 → **앱 등록(Register app)**
+   - **Firebase 호스팅 설정은 체크하지 마세요.** 우리는 GitHub Pages를 사용합니다
+4. 표시되는 `firebaseConfig` 값을 복사합니다
+
+```js
+// 이런 형태로 표시됩니다
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "part-schedule-1234.firebaseapp.com",
+  databaseURL: "https://part-schedule-1234-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "part-schedule-1234",
+  storageBucket: "...",      // 사용하지 않음
+  messagingSenderId: "...",  // 사용하지 않음
+  appId: "..."               // 사용하지 않음
+};
+```
+
+우리 앱은 `apiKey`, `authDomain`, `databaseURL`, `projectId` **4개만** 사용합니다.
+등록 후에는 **설정 → 일반(General)** 탭 하단 **내 앱** 에서 언제든 다시 볼 수 있습니다.
+
+> **주의: App Hosting / Hosting 메뉴는 사용하지 않습니다.** 배포는 GitHub Pages가 담당합니다.
+> `databaseURL`이 `firebaseConfig`에 없으면 2번에서 Realtime Database를 만들지 않은 것입니다.
 
 ## 4. 익명 로그인 사용 설정 (로그인 화면 없애기)
 
@@ -155,6 +180,9 @@ URL과 설정을 알아야 하니 우연히 노출될 가능성은 낮지만, **
 
 | 증상 | 원인 / 해결 |
 |---|---|
+| 설정에 **내 앱**이 없다 | 앱을 아직 등록하지 않은 상태. **프로젝트 개요** 페이지 중앙의 `</>` 아이콘으로 등록 (3번) |
+| App Check에 "프로젝트에 앱이 없습니다" | 같은 원인. 3번을 먼저 진행하세요 |
+| `firebaseConfig`에 `databaseURL`이 없다 | 2번에서 Realtime Database를 만들지 않음 (Firestore만 만든 경우) |
 | 🔴 자동 인증 실패 안내 | 4번에서 **익명(Anonymous)** 공급자를 켜지 않음 |
 | 🔴 연결 오류 | 5번 보안 규칙 미적용 |
 | ⚪ 오프라인 모드 그대로 | `firebase-config.js`의 `databaseURL`, `apiKey`가 비어 있음 |
