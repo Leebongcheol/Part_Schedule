@@ -478,7 +478,7 @@ function renderDashboard() {
     <div class="card"><div class="card-val">${open}</div><div class="card-lb">📋 진행중 업무</div></div>
     <div class="card"><div class="card-val">${doneCnt}</div><div class="card-lb">✅ 완료 업무</div></div>
     <div class="card"><div class="card-val">${pct}%</div><div class="card-lb">📈 전체 진행률</div></div>
-    <div class="card ${dueSoon?'alert':''}"><div class="card-val">${dueSoon}</div><div class="card-lb">⏰ 마감 임박</div></div>
+    <div class="card"><div class="card-val ${dueSoon?'val-warn':''}">${dueSoon}</div><div class="card-lb">⏰ 마감 임박</div></div>
     <div class="card ${need?'alert':''}"><div class="card-val">${need}</div><div class="card-lb">🔴 지원 필요</div></div>
   `;
 

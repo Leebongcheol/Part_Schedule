@@ -422,6 +422,7 @@ tr.sos > td:first-child { animation: sosBg 1.6s ease-in-out infinite, sosPulse 1
 .card-lb{font-size:.875rem;color:var(--g600);margin-top:4px;font-weight:500}
 .card.alert{border-color:var(--dan);background:var(--dan-l)}
 .card.alert .card-val{color:var(--dan)}
+.card-val.val-warn{color:var(--dan)}
 
 /* --- Panels --- */
 .dgrid{display:grid;grid-template-columns:2.4fr 1fr;gap:18px}
