@@ -53,7 +53,7 @@ const DEFAULT_MEMBERS = [
 ];
 
 // ===== State =====
-let members = [], schedules = [], todos = [], notices = [];
+let members = [], schedules = [], todos = [], notices = [], dayMemos = [];
 let curDate = new Date();
 let monDate = new Date();
 let view = 'notice';
@@ -94,6 +94,7 @@ function syncRefs() {
   schedules = DataStore.data.schedules;
   todos = DataStore.data.todos;
   notices = DataStore.data.notices;
+  dayMemos = DataStore.data.dayMemos;
 }
 
 function load() {
@@ -124,6 +125,19 @@ function setSch(mid, date, status, note) {
     ? { ...cur, status, note: note || '' }
     : { id: uid(), memberId: mid, date, status, note: note || '' };
   DataStore.put('schedules', rec);
+}
+
+// ===== Day Memo =====
+function saveDayMemo(date, text) {
+  const existing = dayMemos.find(m => m.date === date);
+  if (!text) {
+    if (existing) DataStore.remove('dayMemos', existing.id);
+    return;
+  }
+  const rec = existing
+    ? { ...existing, text }
+    : { id: uid(), date, text };
+  DataStore.put('dayMemos', rec);
 }
 
 // ===== Member =====
@@ -268,7 +282,9 @@ function renderMonth() {
       }
       const dayScheds = schedules.filter(s => s.date === ds);
       const shown = dayScheds.slice(0, 3);
+      const dayMemo = dayMemos.find(m => m.date === ds);
       let inner = `<span class="d-num">${d.getDate()}</span>`;
+      if (dayMemo) inner += `<span class="d-memo" title="${esc(dayMemo.text)}">📌 ${esc(dayMemo.text)}</span>`;
       if (holi) inner += `<span class="d-holi" title="${esc(holi)}">${esc(holi)}</span>`;
       inner += '<div class="d-list">';
       shown.forEach(s => {
@@ -311,7 +327,16 @@ function openDay(ds) {
 }
 
 function renderDayBody(ds) {
-  $('day-body').innerHTML = members.map(m => {
+  const dayMemo = dayMemos.find(m => m.date === ds);
+  let memoHtml = `<div class="day-memo-box">
+    <label class="day-memo-label">📌 날짜 메모</label>
+    <div class="day-memo-row">
+      <input type="text" class="day-memo-inp" id="day-memo-input" placeholder="예: 파트 회식, 파트 회의 등" value="${dayMemo ? esc(dayMemo.text) : ''}" maxlength="30">
+      <button class="sbtn" id="btn-day-memo-save">저장</button>
+      ${dayMemo ? '<button class="dbtn" id="btn-day-memo-del">삭제</button>' : ''}
+    </div>
+  </div>`;
+  const membersHtml = members.map(m => {
     const s = getSch(m.id, ds);
     const cur = s ? s.status : '';
     const opts = ['', ...STATUS].map(st =>
@@ -323,6 +348,7 @@ function renderDayBody(ds) {
       <input type="text" class="day-note" data-note="${m.id}" placeholder="메모" value="${s ? esc(s.note || '') : ''}" ${cur ? '' : 'disabled'}>
     </div>`;
   }).join('') || '<div class="none-txt">팀원이 없습니다</div>';
+  $('day-body').innerHTML = memoHtml + membersHtml;
 }
 
 // ===== Render: 주간 스케줄 (요일 칸 = 업무 공간) =====
@@ -914,15 +940,34 @@ function bind() {
   // 일자별 근태 모달 내 동작
   $('day-body').addEventListener('click', e => {
     const b = e.target.closest('.dopt');
-    if (!b) return;
-    const ds = $('day-body').dataset.date;
-    const mid = b.dataset.m, st = b.dataset.s;
-    const prev = getSch(mid, ds);
-    if (!st) setSch(mid, ds, null, '');                       // 출근 = 입력 해제
-    else if (prev && prev.status === st) setSch(mid, ds, null, ''); // 같은 값 재클릭 = 해제
-    else setSch(mid, ds, st, prev ? prev.note : '');
-    renderDayBody(ds);
-    renderMonth(); renderCalendar(); renderDashboard();
+    if (b) {
+      const ds = $('day-body').dataset.date;
+      const mid = b.dataset.m, st = b.dataset.s;
+      const prev = getSch(mid, ds);
+      if (!st) setSch(mid, ds, null, '');                       // 출근 = 입력 해제
+      else if (prev && prev.status === st) setSch(mid, ds, null, ''); // 같은 값 재클릭 = 해제
+      else setSch(mid, ds, st, prev ? prev.note : '');
+      renderDayBody(ds);
+      renderMonth(); renderCalendar(); renderDashboard();
+      return;
+    }
+    // 날짜 메모 저장
+    if (e.target.id === 'btn-day-memo-save') {
+      const ds = $('day-body').dataset.date;
+      const text = $('day-memo-input').value.trim();
+      saveDayMemo(ds, text);
+      renderDayBody(ds); renderMonth();
+      toast(text ? '날짜 메모가 저장되었습니다' : '날짜 메모가 삭제되었습니다');
+      return;
+    }
+    // 날짜 메모 삭제
+    if (e.target.id === 'btn-day-memo-del') {
+      const ds = $('day-body').dataset.date;
+      saveDayMemo(ds, '');
+      renderDayBody(ds); renderMonth();
+      toast('날짜 메모가 삭제되었습니다');
+      return;
+    }
   });
   $('day-body').addEventListener('change', e => {
     const n = e.target.closest('[data-note]');
@@ -930,6 +975,16 @@ function bind() {
     const ds = $('day-body').dataset.date;
     const s = getSch(n.dataset.note, ds);
     if (s) { setSch(n.dataset.note, ds, s.status, n.value.trim()); renderMonth(); renderCalendar(); toast('메모가 저장되었습니다'); }
+  });
+  $('day-body').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.id === 'day-memo-input') {
+      e.preventDefault();
+      const ds = $('day-body').dataset.date;
+      const text = $('day-memo-input').value.trim();
+      saveDayMemo(ds, text);
+      renderDayBody(ds); renderMonth();
+      toast(text ? '날짜 메모가 저장되었습니다' : '날짜 메모가 삭제되었습니다');
+    }
   });
 
   // status modal

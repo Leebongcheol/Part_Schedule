@@ -216,6 +216,20 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .d-holi{display:block;font-size:.625rem;color:#dc2626;font-weight:700;margin-bottom:2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* 날짜 메모 (달력 셀 내 날짜 우측) */
+.d-memo{display:inline-block;font-size:.625rem;font-weight:600;color:#7c3aed;
+  background:#f3e8ff;border-radius:8px;padding:0 5px;margin-left:4px;
+  max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  vertical-align:middle;line-height:1.6}
+
+/* 날짜 메모 입력 박스 (일괄 입력 모달 상단) */
+.day-memo-box{padding:10px 4px 14px;border-bottom:2px solid var(--g200);margin-bottom:10px}
+.day-memo-label{display:block;font-size:.8125rem;font-weight:600;color:var(--g600);margin-bottom:6px}
+.day-memo-row{display:flex;align-items:center;gap:8px}
+.day-memo-inp{flex:1;padding:7px 11px;border:1.5px solid var(--g200);border-radius:6px;
+  font-family:var(--font);font-size:.9375rem;color:var(--g800)}
+.day-memo-inp:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+
 /* --- 일자별 근태 입력 모달 --- */
 .day-row{display:flex;align-items:center;gap:12px;padding:9px 4px;
   border-bottom:1px solid var(--g100);flex-wrap:wrap}
