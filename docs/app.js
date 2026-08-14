@@ -283,8 +283,9 @@ function renderMonth() {
       const dayScheds = schedules.filter(s => s.date === ds);
       const shown = dayScheds.slice(0, 3);
       const dayMemo = dayMemos.find(m => m.date === ds);
-      let inner = `<span class="d-num">${d.getDate()}</span>`;
+      let inner = `<div class="d-head"><span class="d-num">${d.getDate()}</span>`;
       if (dayMemo) inner += `<span class="d-memo" title="${esc(dayMemo.text)}">📌 ${esc(dayMemo.text)}</span>`;
+      inner += '</div>';
       if (holi) inner += `<span class="d-holi" title="${esc(holi)}">${esc(holi)}</span>`;
       inner += '<div class="d-list">';
       shown.forEach(s => {
@@ -331,7 +332,7 @@ function renderDayBody(ds) {
   let memoHtml = `<div class="day-memo-box">
     <label class="day-memo-label">📌 날짜 메모</label>
     <div class="day-memo-row">
-      <input type="text" class="day-memo-inp" id="day-memo-input" placeholder="예: 파트 회식, 파트 회의 등" value="${dayMemo ? esc(dayMemo.text) : ''}" maxlength="30">
+      <input type="text" class="day-memo-inp" id="day-memo-input" placeholder="" value="${dayMemo ? esc(dayMemo.text) : ''}" maxlength="30">
       <button class="sbtn" id="btn-day-memo-save">저장</button>
       ${dayMemo ? '<button class="dbtn" id="btn-day-memo-del">삭제</button>' : ''}
     </div>

@@ -200,7 +200,8 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .mon-table td.wknd{background:#fef2f2}
 .mon-table td.wknd:hover{background:#fee2e2}
 .mon-table td.tday{background:#eff6ff;box-shadow:inset 0 0 0 2px var(--pri)}
-.d-num{font-size:.875rem;font-weight:700;color:var(--g600);display:block;margin-bottom:3px}
+.d-num{font-size:.875rem;font-weight:700;color:var(--g600);display:inline;margin-bottom:0}
+.d-head{display:flex;align-items:baseline;gap:3px;margin-bottom:3px;min-width:0}
 .mon-table td.other .d-num{color:var(--g300)}
 .mon-table td.sun-c .d-num{color:#dc2626}
 .mon-table td.sat-c .d-num{color:#2563eb}
@@ -217,10 +218,10 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* 날짜 메모 (달력 셀 내 날짜 우측) */
-.d-memo{display:inline-block;font-size:.625rem;font-weight:600;color:#7c3aed;
-  background:#f3e8ff;border-radius:8px;padding:0 5px;margin-left:4px;
-  max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  vertical-align:middle;line-height:1.6}
+.d-memo{font-size:.625rem;font-weight:600;color:#7c3aed;
+  background:#f3e8ff;border-radius:8px;padding:0 5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  flex:1;min-width:0;line-height:1.6}
 
 /* 날짜 메모 입력 박스 (일괄 입력 모달 상단) */
 .day-memo-box{padding:10px 4px 14px;border-bottom:2px solid var(--g200);margin-bottom:10px}
