@@ -96,6 +96,7 @@
                     <button class="tbtn" id="btn-m-today">이번 달</button>
                     <span class="vlabel" id="month-label"></span>
                     <button class="ibtn" id="btn-m-next">▶</button>
+                    <button class="pbtn" id="btn-bulk-sch">📅 연속 입력</button>
                 </div>
             </div>
             <div class="legend-top">
@@ -410,6 +411,42 @@
             <p class="login-err" id="login-err" hidden></p>
         </div>
         <div class="mfoot"><button class="pbtn" id="btn-login">로그인</button></div>
+    </div>
+</div>
+
+<!-- ===== Modal: 연속 근태 입력 ===== -->
+<div class="mask" id="modal-bulk" hidden>
+    <div class="modal">
+        <div class="mhead"><h3 id="bulk-modal-title">📅 연속 근태 입력</h3><button class="x" data-close="modal-bulk">&times;</button></div>
+        <div class="mbody">
+            <div class="row2">
+                <div class="fg"><label>시작일 *</label><input type="date" class="inp" id="bulk-start"></div>
+                <div class="fg"><label>종료일 *</label><input type="date" class="inp" id="bulk-end"></div>
+            </div>
+            <div class="bulk-range-info" id="bulk-range-info"></div>
+            <div class="fg"><label>근태 유형 *</label>
+                <div class="bulk-status-opts" id="bulk-status-opts">
+                    <button class="sopt" data-bulk-status="출장">출장</button>
+                    <button class="sopt" data-bulk-status="휴가">휴가</button>
+                    <button class="sopt" data-bulk-status="교육">교육</button>
+                    <button class="sopt" data-bulk-status="기타">기타</button>
+                </div>
+            </div>
+            <div class="fg"><label>대상 팀원 *</label>
+                <div class="bulk-member-actions">
+                    <button class="sbtn" id="btn-bulk-all">전체 선택</button>
+                    <button class="sbtn" id="btn-bulk-none">전체 해제</button>
+                </div>
+                <div class="bulk-members" id="bulk-members"></div>
+            </div>
+            <div class="fg"><label>메모</label><input type="text" class="inp" id="bulk-note" placeholder="사유 (선택사항)" maxlength="30"></div>
+            <div class="fg"><label class="ck"><input type="checkbox" id="bulk-skip-weekend" checked> 주말(토·일) 제외</label></div>
+            <div class="fg"><label class="ck"><input type="checkbox" id="bulk-skip-holiday" checked> 공휴일 제외</label></div>
+        </div>
+        <div class="mfoot">
+            <button class="obtn" data-close="modal-bulk">취소</button>
+            <button class="pbtn" id="btn-bulk-save">저장</button>
+        </div>
     </div>
 </div>
 

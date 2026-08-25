@@ -903,6 +903,94 @@ function saveMemberModal() {
   closeModal('modal-member'); renderAll(); toast(`${name} 팀원이 추가되었습니다`);
 }
 
+// ===== 연속 근태 입력 =====
+let bulkStatus = null;
+
+function openBulkModal() {
+  // 현재 월 기준으로 시작일/종료일 기본값 설정
+  const y = monDate.getFullYear(), mo = monDate.getMonth();
+  const todayStr = today();
+  $('bulk-start').value = todayStr;
+  $('bulk-end').value = todayStr;
+  bulkStatus = null;
+
+  // 팀원 체크박스 생성
+  $('bulk-members').innerHTML = members.map(m =>
+    `<label class="bulk-mem-item">
+      <input type="checkbox" value="${m.id}" checked>
+      <span class="mdot" style="background:${m.color}"></span>${esc(m.name)}
+    </label>`
+  ).join('') || '<span class="none-txt">팀원이 없습니다</span>';
+
+  // 상태 버튼 초기화
+  document.querySelectorAll('[data-bulk-status]').forEach(b => b.classList.remove('on'));
+  $('bulk-note').value = '';
+  $('bulk-skip-weekend').checked = true;
+  $('bulk-skip-holiday').checked = true;
+  updateBulkRangeInfo();
+  openModal('modal-bulk');
+}
+
+function updateBulkRangeInfo() {
+  const start = $('bulk-start').value;
+  const end = $('bulk-end').value;
+  const infoEl = $('bulk-range-info');
+  if (!start || !end) { infoEl.textContent = ''; return; }
+  if (start > end) { infoEl.innerHTML = '<span class="bulk-warn">⚠️ 종료일이 시작일보다 앞입니다</span>'; return; }
+  const days = getBulkDates(start, end);
+  const totalDays = Math.round((new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000) + 1;
+  infoEl.innerHTML = `<span class="bulk-info">📆 총 ${totalDays}일 중 <b>${days.length}일</b> 입력 대상 (주말·공휴일 제외 시)</span>`;
+}
+
+function getBulkDates(start, end) {
+  const skipWeekend = $('bulk-skip-weekend').checked;
+  const skipHoliday = $('bulk-skip-holiday').checked;
+  const dates = [];
+  const cur = new Date(start + 'T00:00:00');
+  const endDate = new Date(end + 'T00:00:00');
+  while (cur <= endDate) {
+    const ds = fmt(cur);
+    const dow = cur.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const isHoliday = !!holidayOf(ds);
+    if (!(skipWeekend && isWeekend) && !(skipHoliday && isHoliday)) {
+      dates.push(ds);
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function saveBulkSchedule() {
+  const start = $('bulk-start').value;
+  const end = $('bulk-end').value;
+  if (!start || !end) { alert('시작일과 종료일을 입력해주세요.'); return; }
+  if (start > end) { alert('종료일이 시작일보다 앞입니다.'); return; }
+  if (!bulkStatus) { alert('근태 유형을 선택해주세요.'); return; }
+
+  const selectedMembers = Array.from($('bulk-members').querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+  if (selectedMembers.length === 0) { alert('대상 팀원을 최소 1명 선택해주세요.'); return; }
+
+  const dates = getBulkDates(start, end);
+  if (dates.length === 0) { alert('입력 대상 날짜가 없습니다. (모든 날짜가 주말 또는 공휴일)'); return; }
+
+  const note = $('bulk-note').value.trim();
+  const count = dates.length * selectedMembers.length;
+
+  if (!confirm(`${selectedMembers.length}명 × ${dates.length}일 = 총 ${count}건의 '${bulkStatus}' 근태를 입력합니다.\n계속할까요?`)) return;
+
+  dates.forEach(ds => {
+    selectedMembers.forEach(mid => {
+      setSch(mid, ds, bulkStatus, note);
+    });
+  });
+
+  closeModal('modal-bulk');
+  renderAll();
+  toast(`${count}건 연속 근태가 입력되었습니다`);
+}
+
 // ===== Bindings =====
 function bind() {
   // nav
@@ -931,6 +1019,27 @@ function bind() {
   $('btn-m-prev').addEventListener('click', () => { monDate.setDate(1); monDate.setMonth(monDate.getMonth()-1); renderMonth(); });
   $('btn-m-next').addEventListener('click', () => { monDate.setDate(1); monDate.setMonth(monDate.getMonth()+1); renderMonth(); });
   $('btn-m-today').addEventListener('click', () => { monDate = new Date(); renderMonth(); });
+
+  // 연속 근태 입력
+  $('btn-bulk-sch').addEventListener('click', openBulkModal);
+  $('btn-bulk-save').addEventListener('click', saveBulkSchedule);
+  $('btn-bulk-all').addEventListener('click', () => {
+    $('bulk-members').querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+  });
+  $('btn-bulk-none').addEventListener('click', () => {
+    $('bulk-members').querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  });
+  $('bulk-start').addEventListener('change', updateBulkRangeInfo);
+  $('bulk-end').addEventListener('change', updateBulkRangeInfo);
+  $('bulk-skip-weekend').addEventListener('change', updateBulkRangeInfo);
+  $('bulk-skip-holiday').addEventListener('change', updateBulkRangeInfo);
+  $('bulk-status-opts').addEventListener('click', e => {
+    const b = e.target.closest('[data-bulk-status]');
+    if (!b) return;
+    bulkStatus = b.dataset.bulkStatus;
+    document.querySelectorAll('[data-bulk-status]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  });
 
   // month day click → 일괄 입력 모달
   $('mon-body').addEventListener('click', e => {
