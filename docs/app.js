@@ -109,9 +109,41 @@ function load() {
     } else {
       renderAll();
     }
+    runOneTimeCleanups();
   };
   return DataStore.init().then(() => syncRefs());
 }
+
+/**
+ * 일회성 데이터 정리 작업.
+ * 각 작업은 localStorage 플래그로 브라우저당 1회만 실행하지만,
+ * 공유(클라우드) 데이터에 반영되므로 누군가 한 번 접속하면 전체에 적용됩니다.
+ */
+function runOneTimeCleanups() {
+  // 오성재 '기타' 근태 중 2026-08-24 이후(포함) 항목 전체 삭제
+  const FLAG = 'ps2_cleanup_osj_etc_20260824';
+  try { if (global_localStorageGet(FLAG)) return; } catch (e) { /* noop */ }
+
+  const osj = members.find(m => (m.name || '').trim() === '오성재');
+  if (!osj) return; // 대상 팀원이 없으면 스킵 (플래그도 남기지 않음 → 나중에 재시도)
+
+  const doomed = schedules.filter(s =>
+    s.memberId === osj.id &&
+    s.status === '기타' &&
+    String(s.date || '') >= '2026-08-24'
+  );
+
+  Promise.all(doomed.map(s => DataStore.remove('schedules', s.id)))
+    .then(() => {
+      try { global_localStorageSet(FLAG, '1'); } catch (e) { /* noop */ }
+      syncRefs();
+      renderAll();
+      if (doomed.length > 0) toast(`오성재 기타 근태 ${doomed.length}건 삭제됨`);
+    });
+}
+
+function global_localStorageGet(k) { return (typeof localStorage !== 'undefined') ? localStorage.getItem(k) : null; }
+function global_localStorageSet(k, v) { if (typeof localStorage !== 'undefined') localStorage.setItem(k, v); }
 
 // ===== Schedule =====
 function getSch(mid, date) { return schedules.find(s => s.memberId === mid && s.date === date); }
@@ -141,10 +173,23 @@ function saveDayMemo(date, text) {
 }
 
 // ===== Member =====
+/** 재직 중인 팀원만 (휴직자는 제외). 근태/업무/집계 렌더에 사용한다. */
+function activeMembers() { return members.filter(m => !m.onLeave); }
+/** 해당 팀원 id 가 휴직 중인지 */
+function isOnLeave(mid) { const m = members.find(x => x.id === mid); return !!(m && m.onLeave); }
 function addMember(o) { DataStore.put('members', { id: uid(), ...o }); }
 function updMember(id, patch) {
   const m = members.find(x => x.id === id);
   if (m) DataStore.put('members', { ...m, ...patch });
+}
+/** 휴직 ↔ 재직 전환. 휴직 전환 시 시작일을 오늘로 기록한다. */
+function toggleLeave(id) {
+  const m = members.find(x => x.id === id);
+  if (!m) return;
+  const nowLeave = !m.onLeave;
+  updMember(id, { onLeave: nowLeave, leaveSince: nowLeave ? today() : '' });
+  renderAll();
+  toast(nowLeave ? `${m.name} 휴직 처리되었습니다` : `${m.name} 복직 처리되었습니다`);
 }
 function delMember(id) {
   const m = members.find(x => x.id === id);
@@ -280,7 +325,7 @@ function renderMonth() {
         html += `<td class="${cls}"><span class="d-num">${d.getDate()}</span></td>`;
         continue;
       }
-      const dayScheds = schedules.filter(s => s.date === ds);
+      const dayScheds = schedules.filter(s => s.date === ds && !isOnLeave(s.memberId));
       const shown = dayScheds.slice(0, 3);
       const dayMemo = dayMemos.find(m => m.date === ds);
       let inner = `<div class="d-head"><span class="d-num">${d.getDate()}</span>`;
@@ -304,7 +349,7 @@ function renderMonth() {
   // 월간 집계
   const ms = String(month + 1).padStart(2, '0');
   const pre = `${year}-${ms}`;
-  $('mon-sum-body').innerHTML = members.map(m => {
+  $('mon-sum-body').innerHTML = activeMembers().map(m => {
     const mine = schedules.filter(s => s.memberId === m.id && s.date.startsWith(pre));
     const c = k => mine.filter(s => s.status === k).length;
     const t = c('출장'), v = c('휴가'), e = c('교육'), o = c('기타');
@@ -337,7 +382,7 @@ function renderDayBody(ds) {
       ${dayMemo ? '<button class="dbtn" id="btn-day-memo-del">삭제</button>' : ''}
     </div>
   </div>`;
-  const membersHtml = members.map(m => {
+  const membersHtml = activeMembers().map(m => {
     const s = getSch(m.id, ds);
     const cur = s ? s.status : '';
     const opts = ['', ...STATUS].map(st =>
@@ -385,7 +430,7 @@ function renderCalendar() {
   const po = { high: 0, medium: 1, low: 2 };
   let html = '';
 
-  members.forEach(m => {
+  activeMembers().forEach(m => {
     const wl = stat(m.id);
     html += `<tr class="${wl.need ? 'sos' : ''}">`;
 
@@ -451,7 +496,8 @@ function renderDashboard() {
     `📊 대시보드 (${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${dowNames[now.getDay()]})`;
 
   let trip = 0, vac = 0, edu = 0, etc = 0, need = 0;
-  members.forEach(m => {
+  const active = activeMembers();
+  active.forEach(m => {
     const s = getSch(m.id, td);
     if (s) { if (s.status==='출장') trip++; else if (s.status==='휴가') vac++; else if (s.status==='교육') edu++; else etc++; }
     if (stat(m.id).need) need++;
@@ -459,11 +505,11 @@ function renderDashboard() {
   const open = todos.filter(t => !t.done).length;
   const doneCnt = todos.filter(t => t.done).length;
   const dueSoon = todos.filter(t => !t.done && (() => { const d = daysLeft(t.dueDate); return d !== null && d <= 2; })()).length;
-  const working = members.length - trip - vac - edu - etc;
+  const working = active.length - trip - vac - edu - etc;
 
   // 근태 현황 카드
   $('dash-cards-att').innerHTML = `
-    <div class="card"><div class="card-val">${members.length}</div><div class="card-lb">전체 인원</div></div>
+    <div class="card"><div class="card-val">${active.length}</div><div class="card-lb">전체 인원</div></div>
     <div class="card"><div class="card-val" style="color:#16a34a">${working}</div><div class="card-lb">🟢 출근</div></div>
     <div class="card"><div class="card-val">${trip}</div><div class="card-lb">✈️ 출장</div></div>
     <div class="card"><div class="card-val">${vac}</div><div class="card-lb">🏖️ 휴가</div></div>
@@ -482,7 +528,7 @@ function renderDashboard() {
     <div class="card ${need?'alert':''}"><div class="card-val">${need}</div><div class="card-lb">🔴 지원 필요</div></div>
   `;
 
-  $('dash-body').innerHTML = members.map(m => {
+  $('dash-body').innerHTML = active.map(m => {
     const s = getSch(m.id, td), st = s ? s.status : '출근';
     const cls = s ? (S_CLASS[st] || 'b-etc') : 'b-work';
     const k = stat(m.id);
@@ -507,7 +553,7 @@ function renderDashboard() {
 
   // Alerts (클릭하면 상세 확인)
   let aHtml = '';
-  members.forEach(m => {
+  active.forEach(m => {
     const k = stat(m.id);
     if (k.need) aHtml += `<div class="alert-item" data-tasks="${m.id}|support" `
       + `title="${esc(m.name)} 지원 필요 업무 보기">🔴 <b>${esc(m.name)}</b> · 진행중 ${k.open}건${k.sup?' · 지원요청':''}</div>`;
@@ -634,17 +680,31 @@ function renderNotices() {
 
 // ===== Render: Members (inline editable) =====
 function renderMembers() {
-  $('member-count-txt').textContent = `총 ${members.length}명`;
-  $('member-body').innerHTML = members.map(m => `
-    <tr data-mid="${m.id}">
+  const total = members.length;
+  const leaveCnt = members.filter(m => m.onLeave).length;
+  const activeCnt = total - leaveCnt;
+  $('member-count-txt').textContent = leaveCnt
+    ? `총 ${total}명 · 재직 ${activeCnt}명 · 휴직 ${leaveCnt}명`
+    : `총 ${total}명`;
+  $('member-body').innerHTML = members.map(m => {
+    const leave = !!m.onLeave;
+    const statusCell = leave
+      ? `<span class="mstat mstat-leave" title="휴직 시작 ${esc(m.leaveSince || '-')}">🌙 휴직</span>`
+        + `<button class="leave-btn back" data-toggle-leave="${m.id}" title="${esc(m.name)} 복직">복직</button>`
+      : `<span class="mstat mstat-active">🟢 재직</span>`
+        + `<button class="leave-btn" data-toggle-leave="${m.id}" title="${esc(m.name)} 휴직 처리">휴직</button>`;
+    return `
+    <tr data-mid="${m.id}" class="${leave ? 'mrow-leave' : ''}">
       <td><input type="color" class="cdot" value="${m.color}" data-field="color" title="색상 변경"></td>
       <td class="edit-cell" data-field="name">${esc(m.name)}</td>
       <td class="edit-cell" data-field="position">${esc(m.position)}</td>
       <td class="edit-cell" data-field="role">${esc(m.role) || '<span style="color:#cbd5e1">담당 업무 입력</span>'}</td>
       <td class="edit-cell" data-field="empNo">${esc(m.empNo) || '<span style="color:#cbd5e1">-</span>'}</td>
       <td class="edit-cell" data-field="email">${esc(m.email) || '<span style="color:#cbd5e1">-</span>'}</td>
+      <td class="mstat-cell">${statusCell}</td>
       <td><button class="trash" data-del-member="${m.id}" title="${esc(m.name)} 삭제" aria-label="${esc(m.name)} 삭제">🗑</button></td>
-    </tr>`).join('') || '<tr><td colspan="7" class="none-txt">등록된 팀원이 없습니다.</td></tr>';
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="none-txt">등록된 팀원이 없습니다.</td></tr>';
 }
 
 // ===== Inline edit =====
@@ -773,7 +833,10 @@ function openStatus(mid, date) {
 // ===== Todo modal =====
 function openTodo(presetMid, editId, presetDate) {
   const sel = $('td-assignee');
-  sel.innerHTML = members.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+  // 재직자만 노출하되, 편집 중인 업무의 담당자가 휴직자면 값 유지를 위해 포함
+  const editing = editId ? todos.find(x => x.id === editId) : null;
+  const list = members.filter(m => !m.onLeave || (editing && editing.assigneeId === m.id) || m.id === presetMid);
+  sel.innerHTML = list.map(m => `<option value="${m.id}">${esc(m.name)}${m.onLeave ? ' (휴직)' : ''}</option>`).join('');
   $('todo-edit-id').value = editId || '';
 
   if (editId) {
@@ -1205,6 +1268,8 @@ function bind() {
   $('btn-add-member').addEventListener('click', openMemberModal);
   $('btn-member-save').addEventListener('click', saveMemberModal);
   $('member-body').addEventListener('click', e => {
+    const tl = e.target.closest('[data-toggle-leave]');
+    if (tl) { toggleLeave(tl.dataset.toggleLeave); return; }
     const dl = e.target.closest('[data-del-member]');
     if (dl) { delMember(dl.dataset.delMember); return; }
     const cell = e.target.closest('td.edit-cell');

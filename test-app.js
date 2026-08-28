@@ -730,8 +730,9 @@ sec('14. 팀원 인라인 수정');
 nav('members');
 check('8행 렌더', D.querySelectorAll('#member-body tr').length === 8);
 const mHead = [...D.querySelectorAll('.mtable thead th')].map(t => t.textContent.trim());
-check('팀원 관리 7열 (역할 추가)', mHead.length === 7, JSON.stringify(mHead));
+check('팀원 관리 8열 (상태 추가)', mHead.length === 8, JSON.stringify(mHead));
 check('역할 컬럼 존재', mHead.some(h => h.includes('역할')), JSON.stringify(mHead));
+check('상태 컬럼 존재', mHead.some(h => h.includes('상태')), JSON.stringify(mHead));
 const nameCell = D.querySelector('#member-body td.edit-cell[data-field="name"]');
 click(nameCell);
 const inp = D.querySelector('#member-body .inline-inp');
@@ -745,6 +746,43 @@ click(D.querySelector('#member-body td.edit-cell[data-field="position"]'));
 const isel = D.querySelector('#member-body .inline-sel');
 check('직책은 드롭다운', isel !== null);
 check('직책 옵션 3개', isel && isel.options.length === 3);
+
+sec('14-2. 휴직 인원 (재직/복직 전환)');
+nav('members');
+const leaveBtn0 = D.querySelector('#member-body [data-toggle-leave]');
+check('상태 열 토글 버튼 존재', leaveBtn0 !== null);
+check('기본 상태는 재직 배지', D.querySelector('#member-body .mstat-active') !== null);
+const beforeActive = D.querySelectorAll('#member-body tr').length;
+// 첫 팀원을 휴직 처리
+const firstMid = D.querySelector('#member-body tr').dataset.mid;
+click(D.querySelector(`#member-body tr[data-mid="${firstMid}"] [data-toggle-leave]`));
+const memAfter = JSON.parse(store['ps2_members']).find(m => m.id === firstMid);
+check('휴직 플래그 저장됨', memAfter && memAfter.onLeave === true);
+check('휴직 시작일 기록됨', !!(memAfter && memAfter.leaveSince));
+check('팀원 관리 표에는 여전히 표시(행 수 유지)',
+  D.querySelectorAll('#member-body tr').length === beforeActive);
+check('휴직 행 스타일 클래스', D.querySelector(`#member-body tr[data-mid="${firstMid}"]`).classList.contains('mrow-leave'));
+check('휴직 배지 표시', D.querySelector('#member-body .mstat-leave') !== null);
+check('카운트 문구에 휴직 반영', D.getElementById('member-count-txt').textContent.includes('휴직 1명'));
+// 주간 스케줄에서 휴직자 제외
+nav('week');
+const weekMids = [...D.querySelectorAll('#sch-body tr td.w-mem')];
+const weekHasLeaver = D.querySelector('#sch-body').innerHTML.includes(firstMid);
+check('주간 스케줄에서 휴직자 제외', !weekHasLeaver);
+// 대시보드 전체 인원이 재직자 기준으로 감소
+nav('dashboard');
+const totalCard = D.querySelector('#dash-cards-att .card .card-val').textContent.trim();
+check('대시보드 전체 인원 = 재직 7명', totalCard === '7', totalCard);
+// 복직 처리
+nav('members');
+click(D.querySelector(`#member-body tr[data-mid="${firstMid}"] [data-toggle-leave]`));
+const memBack = JSON.parse(store['ps2_members']).find(m => m.id === firstMid);
+check('복직 시 onLeave 해제', memBack && !memBack.onLeave);
+check('복직 후 재직 배지 복귀', !D.querySelector(`#member-body tr[data-mid="${firstMid}"]`).classList.contains('mrow-leave'));
+nav('dashboard');
+check('복직 후 전체 인원 = 8명',
+  D.querySelector('#dash-cards-att .card .card-val').textContent.trim() === '8');
+nav('members');
 
 sec('15. XSS 방어');
 nav('notice');

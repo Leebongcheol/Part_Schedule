@@ -336,6 +336,21 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .trash:hover{background:var(--dan-l);border-color:#fecaca;color:var(--dan)}
 .trash:active{transform:scale(.94)}
 
+/* 팀원 관리: 재직/휴직 상태 */
+.mstat-cell{white-space:nowrap}
+.mstat{display:inline-block;font-size:.8125rem;font-weight:600;margin-right:8px}
+.mstat-active{color:#16a34a}
+.mstat-leave{color:#7c3aed}
+.leave-btn{border:1px solid #e2e8f0;background:#fff;cursor:pointer;
+  font-size:.75rem;padding:3px 9px;border-radius:6px;color:#64748b;transition:all .12s}
+.leave-btn:hover{background:#f5f3ff;border-color:#ddd6fe;color:#7c3aed}
+.leave-btn.back:hover{background:#f0fdf4;border-color:#bbf7d0;color:#16a34a}
+.leave-btn:active{transform:scale(.94)}
+/* 휴직 행은 흐리게 + 좌측 연보라 막대 */
+tr.mrow-leave{opacity:.55;background:#faf5ff}
+tr.mrow-leave td:first-child{box-shadow:inset 3px 0 0 #a78bfa}
+tr.mrow-leave .mstat-cell,tr.mrow-leave td:last-child{opacity:1}
+
 /* 대시보드 메인 업무(역할) 셀 */
 .dtable td.c-main-td{text-align:left}
 .role-tx{display:block;overflow:hidden;text-overflow:ellipsis;
