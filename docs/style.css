@@ -208,7 +208,8 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .d-list{display:flex;flex-direction:column;gap:2px}
 .d-chip{font-size:.6875rem;font-weight:600;color:#fff;border-radius:9px;
   padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.d-more{font-size:.6875rem;color:var(--pri);font-weight:700}
+.d-more{font-size:.6875rem;color:var(--pri);font-weight:700;cursor:pointer}
+.d-more:hover{text-decoration:underline}
 
 /* 공휴일 - 일요일과 동일 처리 */
 .mon-table td.holi{background:#fef2f2}
@@ -246,6 +247,19 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 .dopt[data-s="출장"].on{background:var(--trip)}
 .dopt[data-s="휴가"]{border-color:var(--vac)}
 .dopt[data-s="휴가"].on{background:var(--vac)}
+.dopt-leave .caret{display:inline-block;margin-left:4px;font-size:.6875rem;transition:transform .15s}
+.dopt-leave .caret.up{transform:rotate(180deg)}
+/* 휴가 세부 옵션 (전일휴가/오전반차/오후반차) - 행 아래에 펼침 */
+.day-sub{flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap;padding:6px 0 2px 132px}
+.dsub{padding:4px 12px;border:1.5px solid var(--vac);border-radius:12px;background:#fff;color:var(--vac);
+  font-family:var(--font);font-size:.75rem;font-weight:600;cursor:pointer;transition:all .12s}
+.dsub:hover{background:#eff6ff}
+.dsub.on{background:var(--vac);color:#fff}
+.hopts{display:flex;gap:8px;margin:-4px 0 14px}
+.hopt{flex:1;padding:8px 6px;border:2px solid var(--vac);border-radius:8px;background:#fff;color:var(--vac);
+  font-family:var(--font);font-size:.8125rem;font-weight:600;cursor:pointer}
+.hopt:hover{background:#eff6ff}
+.hopt.on{background:var(--vac);color:#fff}
 .dopt[data-s="교육"]{border-color:var(--edu)}
 .dopt[data-s="교육"].on{background:var(--edu)}
 .dopt[data-s="기타"]{border-color:var(--etc)}
@@ -615,6 +629,7 @@ textarea.inp{resize:vertical}
   .mon-table{min-width:560px}
   .mon-table td{height:78px}
   .day-row{flex-direction:column;align-items:flex-start;gap:7px}
+  .day-sub{padding-left:0}
   .day-note{width:100%}
   .sub-head{flex-direction:column;align-items:flex-start}
 }

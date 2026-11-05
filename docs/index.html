@@ -283,6 +283,11 @@
                 <button class="sopt" data-status="교육">교육</button>
                 <button class="sopt" data-status="기타">기타</button>
             </div>
+            <div class="hopts" id="status-half" hidden>
+                <button class="hopt" data-half="">전일휴가</button>
+                <button class="hopt" data-half="am">오전반차</button>
+                <button class="hopt" data-half="pm">오후반차</button>
+            </div>
             <input type="text" class="inp" id="status-note" placeholder="메모 (출장지, 사유 등)">
         </div>
         <div class="mfoot">
@@ -295,9 +300,12 @@
 <!-- ===== Modal: 일자별 근태 일괄 입력 (월간) ===== -->
 <div class="mask" id="modal-day" hidden>
     <div class="modal wide">
-        <div class="mhead"><h3 id="day-title">근태 입력</h3><button class="x" data-close="modal-day">&times;</button></div>
+        <div class="mhead"><h3 id="day-title">근태 입력</h3><button class="x" id="btn-day-x">&times;</button></div>
         <div class="mbody" id="day-body"></div>
-        <div class="mfoot"><button class="obtn" data-close="modal-day">닫기</button></div>
+        <div class="mfoot">
+            <button class="obtn" id="btn-day-cancel">취소</button>
+            <button class="pbtn" id="btn-day-save">저장</button>
+        </div>
     </div>
 </div>
 
@@ -430,6 +438,11 @@
                     <button class="sopt" data-bulk-status="휴가">휴가</button>
                     <button class="sopt" data-bulk-status="교육">교육</button>
                     <button class="sopt" data-bulk-status="기타">기타</button>
+                </div>
+                <div class="hopts" id="bulk-half" hidden>
+                    <button class="hopt" data-bulk-half="">전일휴가</button>
+                    <button class="hopt" data-bulk-half="am">오전반차</button>
+                    <button class="hopt" data-bulk-half="pm">오후반차</button>
                 </div>
             </div>
             <div class="fg"><label>대상 팀원 *</label>

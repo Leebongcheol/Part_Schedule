@@ -363,23 +363,79 @@ check('출근일 때 메모 비활성', D.querySelector('#day-body .day-note').d
 
 const tb = D.querySelector('#day-body .dopt[data-s="출장"]');
 const tMid = tb.dataset.m;
+const schOf = () => JSON.parse(store['ps2_sch'] || '[]').find(s => s.memberId === tMid && s.date === dayStr);
 click(tb);
-const rec = JSON.parse(store['ps2_sch']).find(s => s.memberId === tMid && s.date === dayStr);
-check('출장 저장', rec && rec.status === '출장');
+check('저장 전에는 저장소에 반영되지 않음', !schOf());
 check('버튼 활성 갱신',
   D.querySelector(`#day-body .dopt[data-s="출장"][data-m="${tMid}"]`).classList.contains('on'));
 check('메모 활성화', D.querySelector(`#day-body [data-note="${tMid}"]`).disabled === false);
-check('달력에 칩 표시', D.querySelector(`#mon-body td[data-day="${dayStr}"] .d-chip`) !== null);
+check('저장 전에는 달력 칩 없음', D.querySelector(`#mon-body td[data-day="${dayStr}"] .d-chip`) === null);
 click(D.querySelector(`#day-body .dopt[data-s="출장"][data-m="${tMid}"]`));
-check('같은 값 재클릭 = 해제',
-  !JSON.parse(store['ps2_sch']).some(s => s.memberId === tMid && s.date === dayStr));
+check('같은 값 재클릭 = 해제(draft)',
+  D.querySelector(`#day-body .dopt[data-s=""][data-m="${tMid}"]`).classList.contains('on'));
+click(D.querySelector(`#day-body .dopt[data-s="출장"][data-m="${tMid}"]`));
+click(D.getElementById('btn-day-save'));
+check('저장 후 모달 닫힘', D.getElementById('modal-day').hidden === true);
+check('출장 저장', schOf() && schOf().status === '출장');
+check('달력에 칩 표시', D.querySelector(`#mon-body td[data-day="${dayStr}"] .d-chip`) !== null);
+
+// 휴가: 화살표 옵션(전일휴가/오전반차/오후반차)
+click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
 click(D.querySelector(`#day-body .dopt[data-s="휴가"][data-m="${tMid}"]`));
-check('휴가 저장', JSON.parse(store['ps2_sch']).some(s => s.memberId === tMid && s.date === dayStr));
+check('휴가 선택 시 세부 옵션 3개 표시',
+  D.querySelectorAll(`#day-body .dsub[data-m="${tMid}"]`).length === 3);
+click(D.querySelector(`#day-body .dsub[data-m="${tMid}"][data-half="am"]`));
+check('오전반차 버튼 문구', D.querySelector(`#day-body .dopt[data-s="휴가"][data-m="${tMid}"]`).textContent.includes('오전반차'));
+click(D.getElementById('btn-day-save'));
+check('오전반차 저장', schOf() && schOf().status === '휴가' && schOf().half === 'am');
+check('달력 칩에 오전반차 표시',
+  [...D.querySelectorAll(`#mon-body td[data-day="${dayStr}"] .d-chip`)].some(c => c.textContent.includes('오전반차')));
+click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
+check('기존 휴가는 세부 옵션이 펼쳐진 상태', D.querySelectorAll(`#day-body .dsub[data-m="${tMid}"]`).length === 3);
+click(D.querySelector(`#day-body .dsub[data-m="${tMid}"][data-half="pm"]`));
+click(D.getElementById('btn-day-save'));
+check('오후반차 저장', schOf() && schOf().half === 'pm');
+check('달력 칩에 오후반차 표시',
+  [...D.querySelectorAll(`#mon-body td[data-day="${dayStr}"] .d-chip`)].some(c => c.textContent.includes('오후반차')));
+click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
+click(D.querySelector(`#day-body .dsub[data-m="${tMid}"][data-half=""]`));
+click(D.getElementById('btn-day-save'));
+check('전일휴가 저장', schOf() && schOf().half === '');
+check('달력 칩에 휴가 표시',
+  [...D.querySelectorAll(`#mon-body td[data-day="${dayStr}"] .d-chip`)].some(c => /휴가$/.test(c.textContent)));
+
+// 취소 시 반영 안 됨, 출근 클릭 + 저장 = 해제
+click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
 click(D.querySelector(`#day-body .dopt[data-s=""][data-m="${tMid}"]`));
-check('출근 클릭 = 해제',
-  !JSON.parse(store['ps2_sch']).some(s => s.memberId === tMid && s.date === dayStr));
-click(D.querySelector('[data-close="modal-day"]'));
+click(D.getElementById('btn-day-cancel'));
+check('취소 시 모달 닫힘', D.getElementById('modal-day').hidden === true);
+check('취소하면 변경 미반영', !!schOf());
+click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
+click(D.querySelector(`#day-body .dopt[data-s=""][data-m="${tMid}"]`));
+click(D.getElementById('btn-day-save'));
+check('출근 선택 후 저장 = 해제', !schOf());
 check('모달 닫힘', D.getElementById('modal-day').hidden === true);
+
+// +n건 클릭 시 전체 펼침/접기 (4명 입력 → 3건 + '+1건')
+function setDayAll(ids, status) {
+  click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
+  ids.forEach(id => click(D.querySelector(`#day-body .dopt[data-s="${status}"][data-m="${id}"]`)));
+  click(D.getElementById('btn-day-save'));
+}
+click(D.querySelector(`#mon-body td[data-day="${dayStr}"]`));
+const fourIds = [...D.querySelectorAll('#day-body .dopt[data-s="출장"]')].slice(0, 4).map(b => b.dataset.m);
+click(D.getElementById('btn-day-cancel'));
+setDayAll(fourIds, '출장');
+const dayTd = () => D.querySelector(`#mon-body td[data-day="${dayStr}"]`);
+check('4건이면 3칩 + "+1건"', dayTd().querySelectorAll('.d-chip').length === 3 &&
+  dayTd().querySelector('.d-more').textContent.trim() === '+1건');
+click(dayTd().querySelector('.d-more'));
+check('+n건 클릭 → 전체 4칩 펼침, 모달은 열리지 않음',
+  dayTd().querySelectorAll('.d-chip').length === 4 && D.getElementById('modal-day').hidden === true);
+click(dayTd().querySelector('.d-more'));
+check('다시 클릭 → 접힘', dayTd().querySelectorAll('.d-chip').length === 3);
+setDayAll(fourIds, '출장');
+check('정리 후 칩 없음', dayTd().querySelectorAll('.d-chip').length === 0);
 
 sec('12. 대시보드: 타이틀 날짜 + 섹션 분리');
 nav('dashboard');
@@ -431,14 +487,15 @@ sec('12-1. 비고 컬럼: 휴가 D-n / 장기휴가 판정');
 const vIds = memberIds();
 function setAbsence(mid, dateStr, status) {
   // 일자별 모달을 통해 입력 (실제 사용 경로)
-  nav('month');
+  const [yy, mm] = dateStr.split('-').map(Number);
+  gotoMonth(yy, mm);
   const cell = D.querySelector(`#mon-body td[data-day="${dateStr}"]`);
   if (!cell) return false;
   click(cell);
   const btn = D.querySelector(`#day-body .dopt[data-s="${status}"][data-m="${mid}"]`);
   if (!btn) return false;
   click(btn);
-  click(D.querySelector('[data-close="modal-day"]'));
+  click(D.getElementById('btn-day-save'));
   return true;
 }
 function ymd(offsetDays) {

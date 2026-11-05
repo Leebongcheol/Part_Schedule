@@ -7,6 +7,20 @@
 const STATUS = ['출장', '휴가', '교육', '기타'];
 const S_COLOR = { '출장': '#f59e0b', '휴가': '#3b82f6', '교육': '#8b5cf6', '기타': '#6b7280' };
 const S_CLASS = { '출장': 'b-trip', '휴가': 'b-vac', '교육': 'b-edu', '기타': 'b-etc' };
+/** 휴가 세부 구분: half 값 '' = 전일, 'am' = 오전반차, 'pm' = 오후반차 */
+const LEAVE_OPTS = [
+  { half: '', label: '전일휴가', chip: '휴가' },
+  { half: 'am', label: '오전반차', chip: '오전반차' },
+  { half: 'pm', label: '오후반차', chip: '오후반차' }
+];
+/** 달력/배지에 표시할 근태 문구 (휴가는 전일/오전/오후 반차 구분) */
+function statusLabel(s) {
+  if (s.status !== '휴가') return s.status;
+  const o = LEAVE_OPTS.find(x => x.half === (s.half || ''));
+  return o ? o.chip : '휴가';
+}
+/** 휴가 집계 일수 (반차 = 0.5일) */
+function leaveDays(s) { return s.half ? 0.5 : 1; }
 const POSITIONS = ['파트장', '책임연구원', '선임연구원'];
 const P_LABEL = { high: '🔴 높음', medium: '🟡 보통', low: '🟢 낮음' };
 const P_CLASS = { high: 'p-h', medium: 'p-m', low: 'p-l' };
@@ -59,6 +73,8 @@ let monDate = new Date();
 let view = 'notice';
 let tFilter = 'all';
 let sCtx = { mid: null, date: null, sel: null };
+/** 월간 달력에서 '+n건'을 눌러 전체 펼친 날짜 */
+const expandedDays = new Set();
 
 // ===== Helpers =====
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
@@ -147,15 +163,16 @@ function global_localStorageSet(k, v) { if (typeof localStorage !== 'undefined')
 
 // ===== Schedule =====
 function getSch(mid, date) { return schedules.find(s => s.memberId === mid && s.date === date); }
-function setSch(mid, date, status, note) {
+function setSch(mid, date, status, note, half) {
   const cur = getSch(mid, date);
   if (!status) {
     if (cur) DataStore.remove('schedules', cur.id);
     return;
   }
+  const h = status === '휴가' ? (half || '') : '';
   const rec = cur
-    ? { ...cur, status, note: note || '' }
-    : { id: uid(), memberId: mid, date, status, note: note || '' };
+    ? { ...cur, status, note: note || '', half: h }
+    : { id: uid(), memberId: mid, date, status, note: note || '', half: h };
   DataStore.put('schedules', rec);
 }
 
@@ -261,7 +278,7 @@ function nextAbsence(mid) {
     if (byDate[fmt(nx)] === first.status) { days++; cur = nx; }
     else break;
   }
-  return { status: first.status, days, dLeft: daysLeft(first.date) };
+  return { status: first.status, label: statusLabel(first), days, dLeft: daysLeft(first.date) };
 }
 
 /** 비고 라벨 (휴가 D-n / 장기휴가 D-n 등) */
@@ -269,7 +286,7 @@ function remarkOf(mid) {
   const a = nextAbsence(mid);
   if (!a) return '<span class="rm rm-none">-</span>';
   const long = a.days >= 4;
-  const name = (long ? '장기' : '') + a.status;
+  const name = long ? '장기' + a.status : a.label;
   if (a.dLeft === 0) {
     const t = `${name} 중${long ? ` (${a.days}일)` : ''}`;
     return `<span class="rm rm-now" title="${esc(t)}">${t}</span>`;
@@ -326,7 +343,8 @@ function renderMonth() {
         continue;
       }
       const dayScheds = schedules.filter(s => s.date === ds && !isOnLeave(s.memberId));
-      const shown = dayScheds.slice(0, 3);
+      const expanded = expandedDays.has(ds);
+      const shown = expanded ? dayScheds : dayScheds.slice(0, 3);
       const dayMemo = dayMemos.find(m => m.date === ds);
       let inner = `<div class="d-head"><span class="d-num">${d.getDate()}</span>`;
       if (dayMemo) inner += `<span class="d-memo" title="${esc(dayMemo.text)}">📌 ${esc(dayMemo.text)}</span>`;
@@ -336,9 +354,11 @@ function renderMonth() {
       shown.forEach(s => {
         const m = members.find(x => x.id === s.memberId);
         if (!m) return;
-        inner += `<span class="d-chip" style="background:${S_COLOR[s.status] || '#6b7280'}" title="${esc(m.name)} ${s.status}${s.note ? ' · ' + esc(s.note) : ''}">${esc(m.name)} ${s.status}</span>`;
+        inner += `<span class="d-chip" style="background:${S_COLOR[s.status] || '#6b7280'}" title="${esc(m.name)} ${statusLabel(s)}${s.note ? ' · ' + esc(s.note) : ''}">${esc(m.name)} ${statusLabel(s)}</span>`;
       });
-      if (dayScheds.length > 3) inner += `<span class="d-more">+${dayScheds.length - 3}건</span>`;
+      if (dayScheds.length > 3) {
+        inner += `<span class="d-more" data-more="${ds}" title="${expanded ? '접기' : '전체 보기'}">${expanded ? '접기 ▲' : `+${dayScheds.length - 3}건`}</span>`;
+      }
       inner += '</div>';
       html += `<td class="${cls}" data-day="${ds}" title="클릭하여 근태 입력">${inner}</td>`;
     }
@@ -352,7 +372,8 @@ function renderMonth() {
   $('mon-sum-body').innerHTML = activeMembers().map(m => {
     const mine = schedules.filter(s => s.memberId === m.id && s.date.startsWith(pre));
     const c = k => mine.filter(s => s.status === k).length;
-    const t = c('출장'), v = c('휴가'), e = c('교육'), o = c('기타');
+    const t = c('출장'), e = c('교육'), o = c('기타');
+    const v = mine.filter(s => s.status === '휴가').reduce((sum, s) => sum + leaveDays(s), 0);
     return `<tr>
       <td><div class="mcell"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div></td>
       <td>${esc(m.position)}</td>
@@ -368,33 +389,110 @@ function openDay(ds) {
   const dowNames = ['일', '월', '화', '수', '목', '금', '토'];
   $('day-title').textContent = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} (${dowNames[d.getDay()]}) 근태 입력`;
   $('day-body').dataset.date = ds;
-  renderDayBody(ds);
+  dayDraft = buildDayDraft(ds);
+  dayDraftOrig = dayDraftSnapshot();
+  renderDayBody();
   openModal('modal-day');
 }
 
-function renderDayBody(ds) {
-  const dayMemo = dayMemos.find(m => m.date === ds);
-  let memoHtml = `<div class="day-memo-box">
+/**
+ * 일자별 근태 모달은 '저장' 전까지 draft 에만 반영하고,
+ * 저장 시 한 번에 DataStore 에 기록한다.
+ * draft = { date, memo, rows: { [memberId]: {status, half, note} }, openLeave: { [memberId]: bool } }
+ */
+let dayDraft = null, dayDraftOrig = '';
+
+function buildDayDraft(ds) {
+  const rows = {}, openLeave = {};
+  activeMembers().forEach(m => {
+    const s = getSch(m.id, ds);
+    rows[m.id] = { status: s ? s.status : '', half: s ? (s.half || '') : '', note: s ? (s.note || '') : '' };
+    openLeave[m.id] = !!(s && s.status === '휴가');
+  });
+  const memo = dayMemos.find(x => x.date === ds);
+  return { date: ds, memo: memo ? memo.text : '', rows, openLeave };
+}
+
+function dayDraftSnapshot() {
+  if (!dayDraft) return '';
+  const rows = Object.keys(dayDraft.rows).sort().map(id => {
+    const r = dayDraft.rows[id];
+    return [id, r.status, r.status === '휴가' ? r.half : '', r.status ? r.note.trim() : ''];
+  });
+  return JSON.stringify([dayDraft.memo.trim(), rows]);
+}
+
+function isDayDirty() { return !!dayDraft && dayDraftSnapshot() !== dayDraftOrig; }
+
+function leaveName(half) {
+  const o = LEAVE_OPTS.find(x => x.half === half);
+  return o ? o.chip : '휴가';
+}
+
+function renderDayBody() {
+  if (!dayDraft) return;
+  const memoHtml = `<div class="day-memo-box">
     <label class="day-memo-label">📌 날짜 메모</label>
     <div class="day-memo-row">
-      <input type="text" class="day-memo-inp" id="day-memo-input" placeholder="" value="${dayMemo ? esc(dayMemo.text) : ''}" maxlength="30">
-      <button class="sbtn" id="btn-day-memo-save">저장</button>
-      ${dayMemo ? '<button class="dbtn" id="btn-day-memo-del">삭제</button>' : ''}
+      <input type="text" class="day-memo-inp" id="day-memo-input" placeholder="" value="${esc(dayDraft.memo)}" maxlength="30">
     </div>
   </div>`;
   const membersHtml = activeMembers().map(m => {
-    const s = getSch(m.id, ds);
-    const cur = s ? s.status : '';
-    const opts = ['', ...STATUS].map(st =>
-      `<button class="dopt ${cur === st ? 'on' : ''}" data-s="${st}" data-m="${m.id}">${st || '출근'}</button>`
-    ).join('');
+    const r = dayDraft.rows[m.id] || { status: '', half: '', note: '' };
+    const opts = ['', ...STATUS].map(st => {
+      const on = r.status === st;
+      if (st === '휴가') {
+        const open = on && dayDraft.openLeave[m.id];
+        return `<button class="dopt dopt-leave ${on ? 'on' : ''}" data-s="휴가" data-m="${m.id}" aria-expanded="${open}">`
+             + `${on ? leaveName(r.half) : '휴가'}<span class="caret ${open ? 'up' : ''}">▾</span></button>`;
+      }
+      return `<button class="dopt ${on ? 'on' : ''}" data-s="${st}" data-m="${m.id}">${st || '출근'}</button>`;
+    }).join('');
+    const sub = (r.status === '휴가' && dayDraft.openLeave[m.id])
+      ? `<div class="day-sub">${LEAVE_OPTS.map(o =>
+          `<button class="dsub ${r.half === o.half ? 'on' : ''}" data-half="${o.half}" data-m="${m.id}">${o.label}</button>`
+        ).join('')}</div>`
+      : '';
     return `<div class="day-row">
       <div class="day-mem"><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}</div>
       <div class="day-opts">${opts}</div>
-      <input type="text" class="day-note" data-note="${m.id}" placeholder="메모" value="${s ? esc(s.note || '') : ''}" ${cur ? '' : 'disabled'}>
+      <input type="text" class="day-note" data-note="${m.id}" placeholder="메모" value="${esc(r.note)}" ${r.status ? '' : 'disabled'}>
+      ${sub}
     </div>`;
   }).join('') || '<div class="none-txt">팀원이 없습니다</div>';
   $('day-body').innerHTML = memoHtml + membersHtml;
+}
+
+function saveDayModal() {
+  if (!dayDraft) { closeModal('modal-day'); return; }
+  const ds = dayDraft.date;
+  activeMembers().forEach(m => {
+    const r = dayDraft.rows[m.id];
+    if (!r) return;
+    const prev = getSch(m.id, ds);
+    const note = r.note.trim();
+    const half = r.status === '휴가' ? r.half : '';
+    const same = prev
+      ? prev.status === r.status && (prev.half || '') === half && (prev.note || '') === note
+      : !r.status;
+    if (same) return;
+    setSch(m.id, ds, r.status || null, note, half);
+  });
+  const memoText = dayDraft.memo.trim();
+  const prevMemo = dayMemos.find(x => x.date === ds);
+  if ((prevMemo ? prevMemo.text : '') !== memoText) saveDayMemo(ds, memoText);
+
+  dayDraft = null; dayDraftOrig = '';
+  closeModal('modal-day');
+  renderAll();
+  toast('근태가 저장되었습니다');
+}
+
+/** 변경 사항이 있으면 확인 후 닫는다 (저장 없이 닫으면 draft 는 버려짐) */
+function requestCloseDay() {
+  if (isDayDirty() && !confirm('저장하지 않은 변경사항이 있습니다.\n저장하지 않고 닫을까요?')) return;
+  dayDraft = null; dayDraftOrig = '';
+  closeModal('modal-day');
 }
 
 // ===== Render: 주간 스케줄 (요일 칸 = 업무 공간) =====
@@ -451,7 +549,7 @@ function renderCalendar() {
 
       // 출근(입력값 없음)은 아무것도 표시하지 않고, 칸에 마우스를 올렸을 때만 입력 버튼이 보인다
       const att = s
-        ? `<button class="att-mini ${ATT_CLS[s.status] || 'att-etc'}" data-att="${m.id}|${ds}" title="${esc(s.status + (s.note ? ' · ' + s.note : ''))} (클릭하여 변경)">${s.status}${s.note ? '*' : ''}</button>`
+        ? `<button class="att-mini ${ATT_CLS[s.status] || 'att-etc'}" data-att="${m.id}|${ds}" title="${esc(statusLabel(s) + (s.note ? ' · ' + s.note : ''))} (클릭하여 변경)">${statusLabel(s)}${s.note ? '*' : ''}</button>`
         : `<button class="att-ghost" data-att="${m.id}|${ds}" title="근태 입력 (현재: 출근)">근태</button>`;
 
       // 주간 스케줄은 '시작일(수행일)' 기준으로 배치한다
@@ -529,8 +627,8 @@ function renderDashboard() {
   `;
 
   $('dash-body').innerHTML = active.map(m => {
-    const s = getSch(m.id, td), st = s ? s.status : '출근';
-    const cls = s ? (S_CLASS[st] || 'b-etc') : 'b-work';
+    const s = getSch(m.id, td), st = s ? statusLabel(s) : '출근';
+    const cls = s ? (S_CLASS[s.status] || 'b-etc') : 'b-work';
     const k = stat(m.id);
     const sup = todos.filter(t => t.assigneeId === m.id && !t.done && t.needSupport);
     // 메인 업무 = 팀원 프로필의 '역할' (주간 스케줄의 업무와 연동되지 않음)
@@ -822,12 +920,17 @@ function closeModal(id) { $(id).hidden = true; }
 // ===== Status modal =====
 function openStatus(mid, date) {
   const m = members.find(x => x.id === mid), s = getSch(mid, date);
-  sCtx = { mid, date, sel: s ? s.status : null };
+  sCtx = { mid, date, sel: s ? s.status : null, half: s ? (s.half || '') : '' };
   $('status-title').textContent = `${m ? m.name : ''} · ${date}`;
   $('status-note').value = s ? (s.note || '') : '';
   $('btn-status-clear').hidden = !s;
   document.querySelectorAll('.sopt').forEach(b => b.classList.toggle('on', b.dataset.status === sCtx.sel));
+  syncStatusHalf();
   openModal('modal-status');
+}
+function syncStatusHalf() {
+  $('status-half').hidden = sCtx.sel !== '휴가';
+  document.querySelectorAll('#status-half .hopt').forEach(b => b.classList.toggle('on', b.dataset.half === sCtx.half));
 }
 
 // ===== Todo modal =====
@@ -967,7 +1070,12 @@ function saveMemberModal() {
 }
 
 // ===== 연속 근태 입력 =====
-let bulkStatus = null;
+let bulkStatus = null, bulkHalf = '';
+
+function syncBulkHalf() {
+  $('bulk-half').hidden = bulkStatus !== '휴가';
+  document.querySelectorAll('[data-bulk-half]').forEach(b => b.classList.toggle('on', b.dataset.bulkHalf === bulkHalf));
+}
 
 function openBulkModal() {
   // 현재 월 기준으로 시작일/종료일 기본값 설정
@@ -976,8 +1084,7 @@ function openBulkModal() {
   $('bulk-start').value = todayStr;
   $('bulk-end').value = todayStr;
   bulkStatus = null;
-
-  // 팀원 체크박스 생성
+  bulkHalf = '';
   $('bulk-members').innerHTML = members.map(m =>
     `<label class="bulk-mem-item">
       <input type="checkbox" value="${m.id}" checked>
@@ -987,6 +1094,7 @@ function openBulkModal() {
 
   // 상태 버튼 초기화
   document.querySelectorAll('[data-bulk-status]').forEach(b => b.classList.remove('on'));
+  syncBulkHalf();
   $('bulk-note').value = '';
   $('bulk-skip-weekend').checked = true;
   $('bulk-skip-holiday').checked = true;
@@ -1041,11 +1149,12 @@ function saveBulkSchedule() {
   const note = $('bulk-note').value.trim();
   const count = dates.length * selectedMembers.length;
 
-  if (!confirm(`${selectedMembers.length}명 × ${dates.length}일 = 총 ${count}건의 '${bulkStatus}' 근태를 입력합니다.\n계속할까요?`)) return;
+  const bulkLabel = bulkStatus === '휴가' ? leaveName(bulkHalf) : bulkStatus;
+  if (!confirm(`${selectedMembers.length}명 × ${dates.length}일 = 총 ${count}건의 '${bulkLabel}' 근태를 입력합니다.\n계속할까요?`)) return;
 
   dates.forEach(ds => {
     selectedMembers.forEach(mid => {
-      setSch(mid, ds, bulkStatus, note);
+      setSch(mid, ds, bulkStatus, note, bulkHalf);
     });
   });
 
@@ -1068,9 +1177,15 @@ function bind() {
   document.querySelectorAll('[data-close]').forEach(b =>
     b.addEventListener('click', () => closeModal(b.dataset.close)));
   document.querySelectorAll('.mask').forEach(mk =>
-    mk.addEventListener('click', e => { if (e.target === mk) mk.hidden = true; }));
+    mk.addEventListener('click', e => {
+      if (e.target !== mk) return;
+      if (mk.id === 'modal-day') requestCloseDay(); else mk.hidden = true;
+    }));
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') document.querySelectorAll('.mask:not([hidden])').forEach(m => m.hidden = true);
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.mask:not([hidden])').forEach(m => {
+      if (m.id === 'modal-day') requestCloseDay(); else m.hidden = true;
+    });
   });
 
   // week nav
@@ -1100,72 +1215,81 @@ function bind() {
     const b = e.target.closest('[data-bulk-status]');
     if (!b) return;
     bulkStatus = b.dataset.bulkStatus;
+    if (bulkStatus !== '휴가') bulkHalf = '';
     document.querySelectorAll('[data-bulk-status]').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
+    syncBulkHalf();
+  });
+  $('bulk-half').addEventListener('click', e => {
+    const b = e.target.closest('[data-bulk-half]');
+    if (!b) return;
+    bulkHalf = b.dataset.bulkHalf;
+    syncBulkHalf();
   });
 
   // month day click → 일괄 입력 모달
   $('mon-body').addEventListener('click', e => {
+    const more = e.target.closest('[data-more]');
+    if (more) {
+      const ds = more.dataset.more;
+      if (expandedDays.has(ds)) expandedDays.delete(ds); else expandedDays.add(ds);
+      renderMonth();
+      return;
+    }
     const td = e.target.closest('td[data-day]');
     if (td) openDay(td.dataset.day);
   });
 
-  // 일자별 근태 모달 내 동작
+  // 일자별 근태 모달 내 동작 (저장 버튼을 누르기 전까지는 draft 에만 반영)
   $('day-body').addEventListener('click', e => {
+    if (!dayDraft) return;
+    const sub = e.target.closest('.dsub');
+    if (sub) {
+      const r = dayDraft.rows[sub.dataset.m];
+      if (r) { r.status = '휴가'; r.half = sub.dataset.half; renderDayBody(); }
+      return;
+    }
     const b = e.target.closest('.dopt');
-    if (b) {
-      const ds = $('day-body').dataset.date;
-      const mid = b.dataset.m, st = b.dataset.s;
-      const prev = getSch(mid, ds);
-      if (!st) setSch(mid, ds, null, '');                       // 출근 = 입력 해제
-      else if (prev && prev.status === st) setSch(mid, ds, null, ''); // 같은 값 재클릭 = 해제
-      else setSch(mid, ds, st, prev ? prev.note : '');
-      renderDayBody(ds);
-      renderMonth(); renderCalendar(); renderDashboard();
-      return;
+    if (!b) return;
+    const mid = b.dataset.m, st = b.dataset.s;
+    const r = dayDraft.rows[mid];
+    if (!r) return;
+    if (st === '휴가') {
+      if (r.status === '휴가') {
+        dayDraft.openLeave[mid] = !dayDraft.openLeave[mid];  // 이미 휴가면 옵션 펼침/접기
+      } else {
+        r.status = '휴가'; r.half = '';
+        dayDraft.openLeave[mid] = true;
+      }
+    } else if (!st || r.status === st) {                       // 출근 또는 같은 값 재클릭 = 해제
+      r.status = ''; r.half = ''; r.note = '';
+    } else {
+      r.status = st; r.half = '';
     }
-    // 날짜 메모 저장
-    if (e.target.id === 'btn-day-memo-save') {
-      const ds = $('day-body').dataset.date;
-      const text = $('day-memo-input').value.trim();
-      saveDayMemo(ds, text);
-      renderDayBody(ds); renderMonth();
-      toast(text ? '날짜 메모가 저장되었습니다' : '날짜 메모가 삭제되었습니다');
-      return;
-    }
-    // 날짜 메모 삭제
-    if (e.target.id === 'btn-day-memo-del') {
-      const ds = $('day-body').dataset.date;
-      saveDayMemo(ds, '');
-      renderDayBody(ds); renderMonth();
-      toast('날짜 메모가 삭제되었습니다');
-      return;
-    }
+    renderDayBody();
   });
-  $('day-body').addEventListener('change', e => {
+  $('day-body').addEventListener('input', e => {
+    if (!dayDraft) return;
+    if (e.target.id === 'day-memo-input') { dayDraft.memo = e.target.value; return; }
     const n = e.target.closest('[data-note]');
-    if (!n) return;
-    const ds = $('day-body').dataset.date;
-    const s = getSch(n.dataset.note, ds);
-    if (s) { setSch(n.dataset.note, ds, s.status, n.value.trim()); renderMonth(); renderCalendar(); toast('메모가 저장되었습니다'); }
+    if (n && dayDraft.rows[n.dataset.note]) dayDraft.rows[n.dataset.note].note = n.value;
   });
   $('day-body').addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.id === 'day-memo-input') {
       e.preventDefault();
-      const ds = $('day-body').dataset.date;
-      const text = $('day-memo-input').value.trim();
-      saveDayMemo(ds, text);
-      renderDayBody(ds); renderMonth();
-      toast(text ? '날짜 메모가 저장되었습니다' : '날짜 메모가 삭제되었습니다');
+      saveDayModal();
     }
   });
+  $('btn-day-save').addEventListener('click', saveDayModal);
+  $('btn-day-cancel').addEventListener('click', requestCloseDay);
+  $('btn-day-x').addEventListener('click', requestCloseDay);
 
   // status modal
   $('btn-status-save').addEventListener('click', () => {
     // 대상 셀 정보가 없으면 저장하지 않는다 (잘못된 레코드 생성 방지)
     if (!sCtx.mid || !sCtx.date) { closeModal('modal-status'); return; }
     if (!sCtx.sel) { alert('상태를 선택해주세요.'); return; }
-    setSch(sCtx.mid, sCtx.date, sCtx.sel, $('status-note').value.trim());
+    setSch(sCtx.mid, sCtx.date, sCtx.sel, $('status-note').value.trim(), sCtx.half);
     closeModal('modal-status'); renderAll(); toast('저장되었습니다');
   });
   $('btn-status-clear').addEventListener('click', () => {
@@ -1173,10 +1297,16 @@ function bind() {
     setSch(sCtx.mid, sCtx.date, null, '');
     closeModal('modal-status'); renderAll(); toast('삭제되었습니다');
   });
-  document.querySelectorAll('.sopt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.sopt[data-status]').forEach(b => b.addEventListener('click', () => {
+    if (sCtx.sel !== b.dataset.status) sCtx.half = '';
     sCtx.sel = b.dataset.status;
-    document.querySelectorAll('.sopt').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.sopt[data-status]').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
+    syncStatusHalf();
+  }));
+  document.querySelectorAll('#status-half .hopt').forEach(b => b.addEventListener('click', () => {
+    sCtx.half = b.dataset.half;
+    syncStatusHalf();
   }));
 
   // todo
