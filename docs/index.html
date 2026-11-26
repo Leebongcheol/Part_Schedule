@@ -148,7 +148,6 @@
                             <tbody id="pj-body"></tbody>
                         </table>
                     </div>
-                    <p class="hint">O/X 클릭 = 바로 변경 · 고객사명 순 정렬 · <span class="pj-sop-near">빨간 SOP</span> = 이번 달·다음 달(또는 지남)</p>
                     <div class="pj-done" id="pj-done">
                         <button class="pj-done-head" id="pj-done-toggle" aria-expanded="false">
                             <span class="pj-arw">▶</span> ✅ 완료된 프로젝트 <span class="pj-cnt" id="pj-done-cnt">0</span>
@@ -263,7 +262,7 @@
                     <ul>
                         <li>좌측 <b>팀원 목록</b>을 클릭해 담당자별 프로젝트를 봅니다 (<b>전체</b> 선택 시 담당자 열 표시)</li>
                         <li>우측 상단 <b>+ 프로젝트 추가</b> → 고객사·프로젝트명·Stage(RFQ/DV/PV)·포장 개발·Validation·SOP(년월) 입력</li>
-                        <li>표의 <b>O/X</b>를 클릭하면 바로 바뀝니다. 나머지는 <b>수정</b> 버튼으로 변경</li>
+                        <li>포장 개발·Validation은 <b>미진행 / 진행 중 / 완료</b> 3단계로 표시되며, 모든 항목은 <b>수정</b> 버튼으로만 변경합니다</li>
                         <li>SOP가 <b>이번 달·다음 달</b>이거나 이미 지났으면 빨간색으로 표시됩니다</li>
                         <li>개발이 끝나면 <b>종료</b> → 아래 <b>완료된 프로젝트</b>(기본 접힘)로 이동, <b>↩ 복원</b>으로 되돌릴 수 있습니다</li>
                     </ul>
@@ -467,9 +466,9 @@
                 </select></div>
             </div>
             <div class="row3">
-                <div class="fg"><label>시작샘플 포장 개발</label><select class="inp" id="pj-sample"><option value="O">O</option><option value="X">X</option></select></div>
-                <div class="fg"><label>양산 포장 개발</label><select class="inp" id="pj-mass"><option value="O">O</option><option value="X">X</option></select></div>
-                <div class="fg"><label>Validation</label><select class="inp" id="pj-valid"><option value="O">O</option><option value="X">X</option></select></div>
+                <div class="fg"><label>시작샘플 포장 개발</label><select class="inp" id="pj-sample"><option>미진행</option><option>진행 중</option><option>완료</option></select></div>
+                <div class="fg"><label>양산 포장 개발</label><select class="inp" id="pj-mass"><option>미진행</option><option>진행 중</option><option>완료</option></select></div>
+                <div class="fg"><label>Validation</label><select class="inp" id="pj-valid"><option>미진행</option><option>진행 중</option><option>완료</option></select></div>
             </div>
             <div class="fg"><label>SOP (년월)</label><input type="month" class="inp" id="pj-sop"></div>
         </div>

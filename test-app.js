@@ -883,14 +883,14 @@ sec('16-2. 프로젝트 관리');
   };
   const now = new Date();
   const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  addPj('현대', 'GV90', ym(now), { stage: 'PV', sample: 'O' });
+  addPj('현대', 'GV90', ym(now), { stage: 'PV', sample: '완료' });
   addPj('BMW', 'ICON30', '2099-03');
   addPj('<b>X</b>', 'ESC', '');
   const pjs = () => JSON.parse(store['ps2_projects'] || '[]');
   check('프로젝트 3건 저장', pjs().length === 3, store['ps2_projects']);
   check('추가 시 선택 담당자로 저장', pjs().every(p => p.memberId === mid0));
-  check('O/X 값이 boolean 으로 저장', pjs().find(p => p.name === 'GV90').samplePkg === true
-    && pjs().find(p => p.name === 'ICON30').samplePkg === false);
+  check('진행 상태 3단계 저장 (기본 미진행)', pjs().find(p => p.name === 'GV90').samplePkg === '완료'
+    && pjs().find(p => p.name === 'ICON30').samplePkg === '미진행');
   const heads = [...D.querySelectorAll('#pj-head th')].map(t => t.textContent.trim());
   check('컬럼 순서: 고객사 > 프로젝트명 > Stage > 시작샘플 > 양산 > Validation > SOP',
     JSON.stringify(heads.slice(0, 7)) === JSON.stringify(['고객사','프로젝트명','Stage','시작샘플 포장','양산 포장','Validation','SOP']),
@@ -904,9 +904,18 @@ sec('16-2. 프로젝트 관리');
   check('먼 SOP 기본색', rowOf('ICON30').querySelector('.pj-sop-near') === null);
   check('좌측 배지에 진행 건수', D.querySelector(`#pj-mlist [data-pj-member="${mid0}"] .pj-badge`).textContent === '3');
 
-  // O/X 토글
-  click(rowOf('ICON30').querySelector('[data-pj-ox$="|validation"]'));
-  check('O/X 클릭 토글', pjs().find(p => p.name === 'ICON30').validation === true);
+  // 표에서 직접 변경 불가, 3단계 표시 / 좌측 목록 색 원 없음
+  check('표에 클릭 토글 버튼 없음', D.querySelector('#pj-body [data-pj-ox], #pj-body .pj-ox') === null);
+  check('3단계 라벨 표시', rowOf('GV90').textContent.includes('완료') && rowOf('ICON30').textContent.includes('미진행'));
+  check('표 아래 설명 문구 없음', D.querySelector('#view-projects .hint') === null);
+  check('좌측 이름 앞 색 원 없음', D.querySelector('#pj-mlist .mdot') === null);
+  // 수정 모달로 진행 상태 변경
+  click(rowOf('ICON30').querySelector('[data-pj-edit]'));
+  D.getElementById('pj-valid').value = '진행 중';
+  click(D.getElementById('btn-project-save'));
+  check('수정으로 상태 변경', pjs().find(p => p.name === 'ICON30').validation === '진행 중');
+  // 이전 O/X(boolean) 데이터 호환
+  check('기존 boolean 호환', window.eval('pjProgress(true)') === '진행 중' && window.eval('pjProgress(false)') === '미진행');
 
   // 종료 → 완료 영역 (기본 접힘)
   click(rowOf('ICON30').querySelector('[data-pj-close]'));

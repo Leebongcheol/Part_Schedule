@@ -241,6 +241,14 @@ function delNotice(id) { DataStore.remove('notices', id); }
 // ===== Project =====
 const PJ_STAGES = ['RFQ', 'DV', 'PV'];
 const PJ_FLAGS = ['samplePkg', 'massPkg', 'validation'];
+/** 포장 개발 / Validation 진행 상태 (3단계) */
+const PJ_PROGRESS = ['미진행', '진행 중', '완료'];
+const PJ_PROGRESS_CLS = { '미진행': 'pg-none', '진행 중': 'pg-doing', '완료': 'pg-done' };
+/** 이전 O/X(boolean) 데이터 호환: true → 진행 중, false/없음 → 미진행 */
+function pjProgress(v) {
+  if (PJ_PROGRESS.includes(v)) return v;
+  return v === true ? '진행 중' : '미진행';
+}
 /** 프로젝트 화면에서 선택한 담당자 ('all' = 전체) */
 let pjMember = global_localStorageGet('ps2_proj_member') || '';
 /** 완료된 프로젝트 영역 펼침 여부 (기본: 접힘) */
@@ -851,9 +859,9 @@ function currentPjMember(list) {
   if (list.some(m => m.id === pjMember)) return pjMember;
   return list.length ? list[0].id : 'all';
 }
-function oxCell(p, field) {
-  const on = !!p[field];
-  return `<td><button class="pj-ox ${on ? 'on' : ''}" data-pj-ox="${p.id}|${field}" title="클릭하여 ${on ? 'X' : 'O'}로 변경">${on ? 'O' : 'X'}</button></td>`;
+function progressCell(p, field) {
+  const v = pjProgress(p[field]);
+  return `<td><span class="pj-pg ${PJ_PROGRESS_CLS[v]}">${v}</span></td>`;
 }
 function sopCell(p) {
   if (!p.sop) return '<td><span class="cp-none">-</span></td>';
@@ -874,7 +882,7 @@ function renderProjects() {
   $('pj-mlist').innerHTML =
     `<button class="pj-mitem ${isAll ? 'on' : ''}" data-pj-member="all">전체 <span class="pj-badge">${totalOpen}</span></button>`
     + list.map(m => `<button class="pj-mitem ${sel === m.id ? 'on' : ''}" data-pj-member="${m.id}">`
-      + `<span><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}${leaveTag(m)}</span>`
+      + `<span>${esc(m.name)}${leaveTag(m)}</span>`
       + `<span class="pj-badge">${activeProjectCount(m.id)}</span></button>`).join('');
   $('pj-member-sel').innerHTML = `<option value="all">전체 (${totalOpen})</option>`
     + list.map(m => `<option value="${m.id}">${esc(m.name)}${m.onLeave ? ' (휴직)' : ''} (${activeProjectCount(m.id)})</option>`).join('');
@@ -899,7 +907,7 @@ function renderProjects() {
       <td class="pj-cust">${esc(p.customer)}</td>
       <td class="pj-name">${esc(p.name)}</td>
       <td><span class="pj-stage st-${esc(p.stage)}">${esc(p.stage || '-')}</span></td>
-      ${PJ_FLAGS.map(f => oxCell(p, f)).join('')}
+      ${PJ_FLAGS.map(f => progressCell(p, f)).join('')}
       ${sopCell(p)}
       ${isAll ? `<td>${esc(nameOf(p.memberId))}</td>` : ''}
       <td class="pj-acts"><button class="sbtn" data-pj-edit="${p.id}">수정</button>
@@ -1201,16 +1209,15 @@ function openProjectModal(editId) {
   $('pj-customer-list').innerHTML = customers.map(c => `<option value="${esc(c)}"></option>`).join('');
   $('project-edit-id').value = editId || '';
   $('btn-project-del').hidden = !p;
-  const ox = v => (v ? 'O' : 'X');
   if (p) {
     $('project-modal-title').textContent = '프로젝트 수정';
     $('pj-customer').value = p.customer || '';
     $('pj-name').value = p.name || '';
     sel.value = p.memberId || '';
     $('pj-stage').value = p.stage || 'RFQ';
-    $('pj-sample').value = ox(p.samplePkg);
-    $('pj-mass').value = ox(p.massPkg);
-    $('pj-valid').value = ox(p.validation);
+    $('pj-sample').value = pjProgress(p.samplePkg);
+    $('pj-mass').value = pjProgress(p.massPkg);
+    $('pj-valid').value = pjProgress(p.validation);
     $('pj-sop').value = p.sop || '';
   } else {
     $('project-modal-title').textContent = '프로젝트 추가';
@@ -1219,9 +1226,9 @@ function openProjectModal(editId) {
     const cur = currentPjMember(projectMembers());
     if (cur !== 'all' && list.some(m => m.id === cur)) sel.value = cur;
     $('pj-stage').value = 'RFQ';
-    $('pj-sample').value = 'X';
-    $('pj-mass').value = 'X';
-    $('pj-valid').value = 'X';
+    $('pj-sample').value = '미진행';
+    $('pj-mass').value = '미진행';
+    $('pj-valid').value = '미진행';
     $('pj-sop').value = '';
   }
   openModal('modal-project');
@@ -1237,9 +1244,9 @@ function saveProjectModal() {
   const o = {
     customer, name, memberId,
     stage: $('pj-stage').value,
-    samplePkg: $('pj-sample').value === 'O',
-    massPkg: $('pj-mass').value === 'O',
-    validation: $('pj-valid').value === 'O',
+    samplePkg: pjProgress($('pj-sample').value),
+    massPkg: pjProgress($('pj-mass').value),
+    validation: pjProgress($('pj-valid').value),
     sop: $('pj-sop').value
   };
   const editId = $('project-edit-id').value;
@@ -1595,13 +1602,6 @@ function bind() {
   $('pj-member-sel').addEventListener('change', e => selectPjMember(e.target.value));
   $('pj-done-toggle').addEventListener('click', () => { pjDoneOpen = !pjDoneOpen; renderProjects(); });
   $('view-projects').addEventListener('click', e => {
-    const ox = e.target.closest('[data-pj-ox]');
-    if (ox) {
-      const [id, field] = ox.dataset.pjOx.split('|');
-      const p = projects.find(x => x.id === id);
-      if (p && PJ_FLAGS.includes(field)) { updProject(id, { [field]: !p[field] }); renderAll(); }
-      return;
-    }
     const ed = e.target.closest('[data-pj-edit]');
     if (ed) { openProjectModal(ed.dataset.pjEdit); return; }
     const cl = e.target.closest('[data-pj-close]');
