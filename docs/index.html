@@ -18,6 +18,7 @@
             <button class="nav-btn active" data-view="notice"><span>📢</span>공지사항</button>
             <button class="nav-btn" data-view="month"><span>🗓️</span>월간 근태</button>
             <button class="nav-btn" data-view="week"><span>📆</span>주간 스케줄(To do)</button>
+            <button class="nav-btn" data-view="projects"><span>📁</span>프로젝트 관리</button>
             <button class="nav-btn" data-view="dashboard"><span>📊</span>대시보드</button>
             <button class="nav-btn" data-view="members"><span>👥</span>팀원 관리</button>
             <button class="nav-btn" data-view="guide"><span>📖</span>사용 가이드</button>
@@ -128,6 +129,36 @@
             </div>
         </section>
 
+        <!-- ===== 프로젝트 관리 ===== -->
+        <section class="view" id="view-projects">
+            <div class="vhead">
+                <h2>📁 프로젝트 관리</h2>
+                <div class="vactions">
+                    <select class="inp pj-msel" id="pj-member-sel" aria-label="담당자 선택"></select>
+                    <button class="pbtn" id="btn-add-project">+ 프로젝트 추가</button>
+                </div>
+            </div>
+            <div class="pj-layout">
+                <div class="pj-mlist" id="pj-mlist"></div>
+                <div class="pj-main">
+                    <div class="pj-sum" id="pj-sum"></div>
+                    <div class="twrap">
+                        <table class="dtable pj-table">
+                            <thead id="pj-head"></thead>
+                            <tbody id="pj-body"></tbody>
+                        </table>
+                    </div>
+                    <p class="hint">O/X 클릭 = 바로 변경 · 고객사명 순 정렬 · <span class="pj-sop-near">빨간 SOP</span> = 이번 달·다음 달(또는 지남)</p>
+                    <div class="pj-done" id="pj-done">
+                        <button class="pj-done-head" id="pj-done-toggle" aria-expanded="false">
+                            <span class="pj-arw">▶</span> ✅ 완료된 프로젝트 <span class="pj-cnt" id="pj-done-cnt">0</span>
+                        </button>
+                        <div class="pj-done-body" id="pj-done-body"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ===== 대시보드 ===== -->
         <section class="view" id="view-dashboard">
             <div class="vhead"><h2 id="dash-title">📊 대시보드</h2></div>
@@ -149,7 +180,7 @@
                         <h3>팀원별 현황</h3>
                         <div class="twrap">
                             <table class="dtable">
-                                <thead><tr><th class="c-nm">이름</th><th class="c-po">직책</th><th class="c-at">오늘 근태</th><th class="c-main">메인 업무</th><th class="c-sup">지원 필요</th><th class="c-rm">비고</th></tr></thead>
+                                <thead><tr><th class="c-nm">이름</th><th class="c-po">직책</th><th class="c-at">오늘 근태</th><th class="c-main">메인 업무</th><th class="c-pj">진행 프로젝트</th><th class="c-sup">지원 필요</th><th class="c-rm">비고</th></tr></thead>
                                 <tbody id="dash-body"></tbody>
                             </table>
                         </div>
@@ -225,6 +256,16 @@
                         <li>버튼을 다시 누르거나 <b>출근</b>을 누르면 입력이 해제됩니다</li>
                         <li><b>일요일과 공휴일</b>은 숫자가 빨간색, 배경이 연한 빨간색으로 표시됩니다</li>
                         <li>하단에서 팀원별 <b>월간 근태 집계</b>를 확인할 수 있습니다</li>
+                    </ul>
+                </div>
+                <div class="gblock">
+                    <h3>📁 프로젝트 관리</h3>
+                    <ul>
+                        <li>좌측 <b>팀원 목록</b>을 클릭해 담당자별 프로젝트를 봅니다 (<b>전체</b> 선택 시 담당자 열 표시)</li>
+                        <li>우측 상단 <b>+ 프로젝트 추가</b> → 고객사·프로젝트명·Stage(RFQ/DV/PV)·포장 개발·Validation·SOP(년월) 입력</li>
+                        <li>표의 <b>O/X</b>를 클릭하면 바로 바뀝니다. 나머지는 <b>수정</b> 버튼으로 변경</li>
+                        <li>SOP가 <b>이번 달·다음 달</b>이거나 이미 지났으면 빨간색으로 표시됩니다</li>
+                        <li>개발이 끝나면 <b>종료</b> → 아래 <b>완료된 프로젝트</b>(기본 접힘)로 이동, <b>↩ 복원</b>으로 되돌릴 수 있습니다</li>
                     </ul>
                 </div>
                 <div class="gblock">
@@ -404,6 +445,38 @@
         <div class="mfoot">
             <button class="obtn" data-close="modal-member">취소</button>
             <button class="pbtn" id="btn-member-save">추가</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Modal: 프로젝트 추가/수정 ===== -->
+<div class="mask" id="modal-project" hidden>
+    <div class="modal">
+        <div class="mhead"><h3 id="project-modal-title">프로젝트 추가</h3><button class="x" data-close="modal-project">&times;</button></div>
+        <div class="mbody">
+            <input type="hidden" id="project-edit-id">
+            <div class="row2">
+                <div class="fg"><label>고객사 *</label><input type="text" class="inp" id="pj-customer" placeholder="예: BMW" list="pj-customer-list"></div>
+                <div class="fg"><label>프로젝트명 *</label><input type="text" class="inp" id="pj-name" placeholder="예: ICON30"></div>
+            </div>
+            <datalist id="pj-customer-list"></datalist>
+            <div class="row2">
+                <div class="fg"><label>담당자 *</label><select class="inp" id="pj-member"></select></div>
+                <div class="fg"><label>Stage</label><select class="inp" id="pj-stage">
+                    <option value="RFQ">RFQ</option><option value="DV">DV</option><option value="PV">PV</option>
+                </select></div>
+            </div>
+            <div class="row3">
+                <div class="fg"><label>시작샘플 포장 개발</label><select class="inp" id="pj-sample"><option value="O">O</option><option value="X">X</option></select></div>
+                <div class="fg"><label>양산 포장 개발</label><select class="inp" id="pj-mass"><option value="O">O</option><option value="X">X</option></select></div>
+                <div class="fg"><label>Validation</label><select class="inp" id="pj-valid"><option value="O">O</option><option value="X">X</option></select></div>
+            </div>
+            <div class="fg"><label>SOP (년월)</label><input type="month" class="inp" id="pj-sop"></div>
+        </div>
+        <div class="mfoot">
+            <button class="dbtn pj-del" id="btn-project-del" hidden>삭제</button>
+            <button class="obtn" data-close="modal-project">취소</button>
+            <button class="pbtn" id="btn-project-save">저장</button>
         </div>
     </div>
 </div>

@@ -67,7 +67,7 @@ const DEFAULT_MEMBERS = [
 ];
 
 // ===== State =====
-let members = [], schedules = [], todos = [], notices = [], dayMemos = [];
+let members = [], schedules = [], todos = [], notices = [], dayMemos = [], projects = [];
 let curDate = new Date();
 let monDate = new Date();
 let view = 'notice';
@@ -111,6 +111,7 @@ function syncRefs() {
   todos = DataStore.data.todos;
   notices = DataStore.data.notices;
   dayMemos = DataStore.data.dayMemos;
+  projects = DataStore.data.projects;
 }
 
 function load() {
@@ -210,10 +211,11 @@ function toggleLeave(id) {
 }
 function delMember(id) {
   const m = members.find(x => x.id === id);
-  if (!confirm(`'${m ? m.name : ''}' 팀원을 삭제합니다.\n관련 일정과 할 일도 함께 삭제됩니다. 계속할까요?`)) return;
+  if (!confirm(`'${m ? m.name : ''}' 팀원을 삭제합니다.\n관련 일정, 할 일, 프로젝트도 함께 삭제됩니다. 계속할까요?`)) return;
   Promise.all([
     DataStore.removeWhere('schedules', x => x.memberId === id),
-    DataStore.removeWhere('todos', x => x.assigneeId === id)
+    DataStore.removeWhere('todos', x => x.assigneeId === id),
+    DataStore.removeWhere('projects', x => x.memberId === id)
   ]).then(() => DataStore.remove('members', id))
     .then(() => { syncRefs(); renderAll(); toast('팀원이 삭제되었습니다'); });
 }
@@ -235,6 +237,37 @@ function updNotice(id, patch) {
   if (n) DataStore.put('notices', { ...n, ...patch });
 }
 function delNotice(id) { DataStore.remove('notices', id); }
+
+// ===== Project =====
+const PJ_STAGES = ['RFQ', 'DV', 'PV'];
+const PJ_FLAGS = ['samplePkg', 'massPkg', 'validation'];
+/** 프로젝트 화면에서 선택한 담당자 ('all' = 전체) */
+let pjMember = global_localStorageGet('ps2_proj_member') || '';
+/** 완료된 프로젝트 영역 펼침 여부 (기본: 접힘) */
+let pjDoneOpen = false;
+
+function addProject(o) {
+  DataStore.put('projects', { id: uid(), closed: false, createdAt: new Date().toISOString(), ...o });
+}
+function updProject(id, patch) {
+  const p = projects.find(x => x.id === id);
+  if (p) DataStore.put('projects', { ...p, ...patch });
+}
+function delProject(id) { DataStore.remove('projects', id); }
+function activeProjectCount(mid) { return projects.filter(p => p.memberId === mid && !p.closed).length; }
+/** 고객사명 → 프로젝트명 순 정렬 (엑셀과 같이 영문 A-Z 다음 한글 가나다) */
+function sortProjects(list) {
+  const cmp = (a, b) => String(a || '').localeCompare(String(b || ''), 'en', { sensitivity: 'base', numeric: true });
+  return list.slice().sort((a, b) => cmp(a.customer, b.customer) || cmp(a.name, b.name));
+}
+/** SOP(YYYY-MM)까지 남은 개월 수 (이번 달 = 0, 지난 달 = -1). 미입력 시 null */
+function sopMonthsLeft(sop) {
+  const m = /^(\d{4})-(\d{2})/.exec(sop || '');
+  if (!m) return null;
+  const now = new Date();
+  return (+m[1] * 12 + (+m[2] - 1)) - (now.getFullYear() * 12 + now.getMonth());
+}
+function isSopNear(sop) { const d = sopMonthsLeft(sop); return d !== null && d <= 1; }
 
 // ===== Workload =====
 function stat(mid) {
@@ -640,6 +673,9 @@ function renderDashboard() {
       <td class="c-main-td">${role
         ? `<span class="role-tx" title="${esc(role)}">${esc(role)}</span>`
         : '<span class="role-none">- <small>(팀원 관리에서 입력)</small></span>'}</td>
+      <td>${(() => { const n = activeProjectCount(m.id);
+        return n ? `<button class="pj-dash-cnt" data-pj-goto="${m.id}" title="${esc(m.name)} 프로젝트 보기">${n}건</button>`
+                 : '<span class="cp-none">-</span>'; })()}</td>
       ${sup.length
         ? `<td class="cell-preview" data-tasks="${m.id}|support" title="${esc(sup.map(t => '· ' + t.title).join('\n'))}\n\n(클릭하여 상세 보기)">
              <div class="sup-wrap"><span class="sos-tag"><span class="dotb"></span>지원 필요</span>
@@ -647,7 +683,7 @@ function renderDashboard() {
         : '<td><span class="cp-none">-</span></td>'}
       <td>${remarkOf(m.id)}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="6" class="none-txt">팀원이 없습니다</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="none-txt">팀원이 없습니다</td></tr>';
 
   // Alerts (클릭하면 상세 확인)
   let aHtml = '';
@@ -805,6 +841,88 @@ function renderMembers() {
   }).join('') || '<tr><td colspan="8" class="none-txt">등록된 팀원이 없습니다.</td></tr>';
 }
 
+// ===== Render: 프로젝트 관리 =====
+/** 목록에 보일 팀원: 재직자 + (진행 프로젝트가 남아 있는) 휴직자 */
+function projectMembers() {
+  return members.filter(m => !m.onLeave || projects.some(p => p.memberId === m.id && !p.closed));
+}
+function currentPjMember(list) {
+  if (pjMember === 'all') return 'all';
+  if (list.some(m => m.id === pjMember)) return pjMember;
+  return list.length ? list[0].id : 'all';
+}
+function oxCell(p, field) {
+  const on = !!p[field];
+  return `<td><button class="pj-ox ${on ? 'on' : ''}" data-pj-ox="${p.id}|${field}" title="클릭하여 ${on ? 'X' : 'O'}로 변경">${on ? 'O' : 'X'}</button></td>`;
+}
+function sopCell(p) {
+  if (!p.sop) return '<td><span class="cp-none">-</span></td>';
+  const d = sopMonthsLeft(p.sop);
+  const tag = d < 0 ? ' (지남)' : (d === 0 ? ' (이번 달)' : (d === 1 ? ' (다음 달)' : ''));
+  return `<td class="${!p.closed && isSopNear(p.sop) ? 'pj-sop-near' : ''}">${esc(p.sop)}${p.closed ? '' : tag}</td>`;
+}
+
+function renderProjects() {
+  const list = projectMembers();
+  const sel = currentPjMember(list);
+  const isAll = sel === 'all';
+  const nameOf = mid => { const m = members.find(x => x.id === mid); return m ? m.name : '미지정'; };
+  const leaveTag = m => m.onLeave ? ' <small class="pj-leave">(휴직)</small>' : '';
+
+  // 좌측 팀원 목록 (진행 건수 배지) + 좁은 화면용 드롭박스
+  const totalOpen = projects.filter(p => !p.closed).length;
+  $('pj-mlist').innerHTML =
+    `<button class="pj-mitem ${isAll ? 'on' : ''}" data-pj-member="all">전체 <span class="pj-badge">${totalOpen}</span></button>`
+    + list.map(m => `<button class="pj-mitem ${sel === m.id ? 'on' : ''}" data-pj-member="${m.id}">`
+      + `<span><span class="mdot" style="background:${m.color}"></span>${esc(m.name)}${leaveTag(m)}</span>`
+      + `<span class="pj-badge">${activeProjectCount(m.id)}</span></button>`).join('');
+  $('pj-member-sel').innerHTML = `<option value="all">전체 (${totalOpen})</option>`
+    + list.map(m => `<option value="${m.id}">${esc(m.name)}${m.onLeave ? ' (휴직)' : ''} (${activeProjectCount(m.id)})</option>`).join('');
+  $('pj-member-sel').value = sel;
+
+  const mine = projects.filter(p => isAll || p.memberId === sel);
+  const open = sortProjects(mine.filter(p => !p.closed));
+  const done = sortProjects(mine.filter(p => p.closed));
+
+  // 요약
+  const cnt = s => open.filter(p => p.stage === s).length;
+  const near = open.filter(p => isSopNear(p.sop)).length;
+  $('pj-sum').innerHTML = `<div>진행 <b>${open.length}</b></div>`
+    + PJ_STAGES.map(s => `<div><span class="pj-stage st-${s}">${s}</span> <b>${cnt(s)}</b></div>`).join('')
+    + `<div>SOP 임박 <b class="${near ? 'pj-sop-near' : ''}">${near}</b></div>`;
+
+  const ownerTh = isAll ? '<th>담당자</th>' : '';
+  $('pj-head').innerHTML = `<tr><th>고객사</th><th>프로젝트명</th><th>Stage</th><th>시작샘플 포장</th>`
+    + `<th>양산 포장</th><th>Validation</th><th>SOP</th>${ownerTh}<th class="pj-act-th">작업</th></tr>`;
+  const cols = isAll ? 9 : 8;
+  $('pj-body').innerHTML = open.map(p => `<tr>
+      <td class="pj-cust">${esc(p.customer)}</td>
+      <td class="pj-name">${esc(p.name)}</td>
+      <td><span class="pj-stage st-${esc(p.stage)}">${esc(p.stage || '-')}</span></td>
+      ${PJ_FLAGS.map(f => oxCell(p, f)).join('')}
+      ${sopCell(p)}
+      ${isAll ? `<td>${esc(nameOf(p.memberId))}</td>` : ''}
+      <td class="pj-acts"><button class="sbtn" data-pj-edit="${p.id}">수정</button>
+        <button class="pj-end" data-pj-close="${p.id}">종료</button></td>
+    </tr>`).join('')
+    || `<tr><td colspan="${cols}" class="none-txt">진행 중인 프로젝트가 없습니다. 우측 상단 "+ 프로젝트 추가" 버튼을 눌러 추가하세요.</td></tr>`;
+
+  // 완료된 프로젝트 (회색, 기본 접힘)
+  $('pj-done-cnt').textContent = done.length;
+  $('pj-done').classList.toggle('open', pjDoneOpen);
+  $('pj-done-toggle').setAttribute('aria-expanded', String(pjDoneOpen));
+  $('pj-done-body').innerHTML = done.length
+    ? `<div class="twrap"><table class="dtable pj-done-table"><thead><tr><th>고객사</th><th>프로젝트명</th><th>Stage</th><th>SOP</th>`
+      + `${ownerTh}<th>종료일</th><th>작업</th></tr></thead><tbody>`
+      + done.map(p => `<tr><td>${esc(p.customer)}</td><td>${esc(p.name)}</td><td>${esc(p.stage || '-')}</td>`
+        + `<td>${esc(p.sop || '-')}</td>${isAll ? `<td>${esc(nameOf(p.memberId))}</td>` : ''}`
+        + `<td>${esc(p.closedAt || '-')}</td>`
+        + `<td class="pj-acts"><button class="sbtn" data-pj-reopen="${p.id}">↩ 복원</button>`
+        + `<button class="trash" data-pj-del="${p.id}" title="삭제" aria-label="${esc(p.name)} 삭제">🗑</button></td></tr>`).join('')
+      + '</tbody></table></div>'
+    : '<div class="none-txt">완료된 프로젝트가 없습니다.</div>';
+}
+
 // ===== Inline edit =====
 function startInlineEdit(td) {
   if (td.querySelector('input, select')) return;
@@ -894,7 +1012,7 @@ function doLogin() {
 // ===== Render All =====
 function renderAll() {
   renderCalendar(); renderMonth(); renderDashboard();
-  renderNotices(); renderMembers();
+  renderNotices(); renderMembers(); renderProjects();
 }
 
 
@@ -908,6 +1026,7 @@ function switchView(v) {
   else if (v === 'dashboard') renderDashboard();
   else if (v === 'notice') renderNotices();
   else if (v === 'members') renderMembers();
+  else if (v === 'projects') renderProjects();
   closeSidebar();
 }
 function closeSidebar() {
@@ -1067,6 +1186,71 @@ function saveMemberModal() {
               empNo: $('mb-empno').value.trim(),
               email: $('mb-email').value.trim(), color: $('mb-color').value });
   closeModal('modal-member'); renderAll(); toast(`${name} 팀원이 추가되었습니다`);
+}
+
+// ===== Project modal =====
+function openProjectModal(editId) {
+  const p = editId ? projects.find(x => x.id === editId) : null;
+  if (editId && !p) return;
+  const sel = $('pj-member');
+  // 재직자만 노출하되, 편집 중인 프로젝트 담당자가 휴직자면 값 유지를 위해 포함
+  const list = members.filter(m => !m.onLeave || (p && p.memberId === m.id));
+  sel.innerHTML = list.map(m => `<option value="${m.id}">${esc(m.name)}${m.onLeave ? ' (휴직)' : ''}</option>`).join('');
+  const customers = [...new Set(projects.map(x => (x.customer || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+  $('pj-customer-list').innerHTML = customers.map(c => `<option value="${esc(c)}"></option>`).join('');
+  $('project-edit-id').value = editId || '';
+  $('btn-project-del').hidden = !p;
+  const ox = v => (v ? 'O' : 'X');
+  if (p) {
+    $('project-modal-title').textContent = '프로젝트 수정';
+    $('pj-customer').value = p.customer || '';
+    $('pj-name').value = p.name || '';
+    sel.value = p.memberId || '';
+    $('pj-stage').value = p.stage || 'RFQ';
+    $('pj-sample').value = ox(p.samplePkg);
+    $('pj-mass').value = ox(p.massPkg);
+    $('pj-valid').value = ox(p.validation);
+    $('pj-sop').value = p.sop || '';
+  } else {
+    $('project-modal-title').textContent = '프로젝트 추가';
+    $('pj-customer').value = '';
+    $('pj-name').value = '';
+    const cur = currentPjMember(projectMembers());
+    if (cur !== 'all' && list.some(m => m.id === cur)) sel.value = cur;
+    $('pj-stage').value = 'RFQ';
+    $('pj-sample').value = 'X';
+    $('pj-mass').value = 'X';
+    $('pj-valid').value = 'X';
+    $('pj-sop').value = '';
+  }
+  openModal('modal-project');
+  setTimeout(() => $('pj-customer').focus(), 50);
+}
+function saveProjectModal() {
+  const customer = $('pj-customer').value.trim();
+  const name = $('pj-name').value.trim();
+  const memberId = $('pj-member').value;
+  if (!customer) { alert('고객사를 입력해주세요.'); return; }
+  if (!name) { alert('프로젝트명을 입력해주세요.'); return; }
+  if (!memberId) { alert('담당자를 선택해주세요.'); return; }
+  const o = {
+    customer, name, memberId,
+    stage: $('pj-stage').value,
+    samplePkg: $('pj-sample').value === 'O',
+    massPkg: $('pj-mass').value === 'O',
+    validation: $('pj-valid').value === 'O',
+    sop: $('pj-sop').value
+  };
+  const editId = $('project-edit-id').value;
+  if (editId) { updProject(editId, o); toast('수정되었습니다'); }
+  else { addProject(o); toast('프로젝트가 추가되었습니다'); }
+  closeModal('modal-project'); renderAll();
+}
+function selectPjMember(mid) {
+  pjMember = mid;
+  global_localStorageSet('ps2_proj_member', mid);
+  renderProjects();
 }
 
 // ===== 연속 근태 입력 =====
@@ -1314,6 +1498,8 @@ function bind() {
   $('btn-todo-save').addEventListener('click', saveTodoModal);
 
   $('dash-body').addEventListener('click', e => {
+    const pg = e.target.closest('[data-pj-goto]');
+    if (pg) { pjMember = pg.dataset.pjGoto; global_localStorageSet('ps2_proj_member', pjMember); switchView('projects'); return; }
     const c = e.target.closest('[data-tasks]');
     if (c) { const [mid, kind] = c.dataset.tasks.split('|'); openTasks(mid, kind); }
   });
@@ -1392,6 +1578,44 @@ function bind() {
     if (ed) { openNotice(ed.dataset.editNotice); return; }
     const dl = e.target.closest('[data-del-notice]');
     if (dl && confirm('이 공지를 삭제할까요?')) { delNotice(dl.dataset.delNotice); renderNotices(); renderDashboard(); toast('삭제되었습니다'); }
+  });
+
+  // projects
+  $('btn-add-project').addEventListener('click', () => openProjectModal());
+  $('btn-project-save').addEventListener('click', saveProjectModal);
+  $('btn-project-del').addEventListener('click', () => {
+    const id = $('project-edit-id').value;
+    if (!id || !confirm('이 프로젝트를 삭제할까요? (종료가 아닌 완전 삭제)')) return;
+    delProject(id); closeModal('modal-project'); renderAll(); toast('삭제되었습니다');
+  });
+  $('pj-mlist').addEventListener('click', e => {
+    const b = e.target.closest('[data-pj-member]');
+    if (b) selectPjMember(b.dataset.pjMember);
+  });
+  $('pj-member-sel').addEventListener('change', e => selectPjMember(e.target.value));
+  $('pj-done-toggle').addEventListener('click', () => { pjDoneOpen = !pjDoneOpen; renderProjects(); });
+  $('view-projects').addEventListener('click', e => {
+    const ox = e.target.closest('[data-pj-ox]');
+    if (ox) {
+      const [id, field] = ox.dataset.pjOx.split('|');
+      const p = projects.find(x => x.id === id);
+      if (p && PJ_FLAGS.includes(field)) { updProject(id, { [field]: !p[field] }); renderAll(); }
+      return;
+    }
+    const ed = e.target.closest('[data-pj-edit]');
+    if (ed) { openProjectModal(ed.dataset.pjEdit); return; }
+    const cl = e.target.closest('[data-pj-close]');
+    if (cl) {
+      const p = projects.find(x => x.id === cl.dataset.pjClose);
+      if (p && confirm(`'${p.customer} ${p.name}' 프로젝트를 종료할까요?\n완료된 프로젝트로 이동합니다.`)) {
+        updProject(p.id, { closed: true, closedAt: today() }); renderAll(); toast('종료 처리되었습니다');
+      }
+      return;
+    }
+    const ro = e.target.closest('[data-pj-reopen]');
+    if (ro) { updProject(ro.dataset.pjReopen, { closed: false, closedAt: '' }); renderAll(); toast('복원되었습니다'); return; }
+    const dl = e.target.closest('[data-pj-del]');
+    if (dl && confirm('이 프로젝트를 완전히 삭제할까요?')) { delProject(dl.dataset.pjDel); renderAll(); toast('삭제되었습니다'); }
   });
 
   // members

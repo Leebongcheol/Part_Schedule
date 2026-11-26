@@ -107,11 +107,12 @@ body{font-family:var(--font);font-size:1rem;color:var(--g800);background:var(--g
 /* 대시보드 팀원별 현황: 이름·직책은 넓게, 메인 업무는 남는 폭
    min-width 를 주어 화면이 좁아지면 열이 겹치지 않고 가로 스크롤이 생기게 한다
    (주간표 min-width:1000px, 월간표 min-width:560px 와 동일한 방식) */
-#view-dashboard .dtable{table-layout:fixed;min-width:840px}
+#view-dashboard .dtable{table-layout:fixed;min-width:940px}
 #view-dashboard .dtable th.c-nm{width:144px}
 #view-dashboard .dtable th.c-po{width:138px}
 #view-dashboard .dtable th.c-at{width:76px}
 #view-dashboard .dtable th.c-main{width:auto}
+#view-dashboard .dtable th.c-pj{width:100px}
 #view-dashboard .dtable th.c-sup{width:140px}
 #view-dashboard .dtable th.c-rm{width:138px}
 #view-dashboard .dtable td{padding:9px 10px;overflow:hidden}
@@ -608,9 +609,66 @@ textarea.inp{resize:vertical}
 @keyframes slideUp{from{transform:translateX(-50%) translateY(16px);opacity:0}to{transform:translateX(-50%);opacity:1}}
 
 
+/* --- 프로젝트 관리 --- */
+.pj-layout{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start}
+.pj-msel{display:none;width:auto;min-width:160px}
+.pj-mlist{background:#fff;border-radius:var(--rad);box-shadow:var(--sh);padding:6px;
+  display:flex;flex-direction:column;gap:2px;position:sticky;top:16px}
+.pj-mitem{display:flex;justify-content:space-between;align-items:center;gap:6px;width:100%;
+  padding:8px 10px;border:none;background:none;border-radius:6px;cursor:pointer;
+  font-family:var(--font);font-size:.9rem;color:var(--g800);text-align:left}
+.pj-mitem:hover{background:var(--g100)}
+.pj-mitem.on{background:var(--pri-l);color:var(--pri);font-weight:600}
+.pj-mitem .mdot{margin-right:7px}
+.pj-badge{background:var(--g200);color:var(--g600);border-radius:10px;padding:0 8px;font-size:.75rem;font-weight:600;flex-shrink:0}
+.pj-mitem.on .pj-badge{background:var(--pri);color:#fff}
+.pj-leave{color:#7c3aed;font-weight:400}
+.pj-main{min-width:0}
+.pj-sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.pj-sum>div{background:#fff;border-radius:var(--rad);box-shadow:var(--sh);padding:7px 14px;font-size:.8125rem;color:var(--g600)}
+.pj-sum b{font-size:1.05rem;color:var(--g800);margin-left:4px}
+.pj-table{min-width:760px}
+.pj-table td{padding:8px 10px}
+.pj-cust{font-weight:600}
+.pj-table td.pj-name{text-align:left}
+.pj-act-th{width:130px}
+.pj-acts{white-space:nowrap}
+.pj-acts>*+*{margin-left:4px}
+.pj-stage{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;font-weight:700;color:#fff;background:var(--g400)}
+.pj-sum .pj-stage{margin-right:2px}
+.st-RFQ{background:#f59e0b}.st-DV{background:#3b82f6}.st-PV{background:#16a34a}
+.pj-ox{width:28px;height:28px;border-radius:50%;border:1px solid var(--g200);background:var(--g50);
+  color:var(--g400);font-weight:700;font-size:.85rem;cursor:pointer;font-family:var(--font)}
+.pj-ox.on{color:var(--suc);border-color:#86efac;background:#f0fdf4}
+.pj-ox:hover{border-color:var(--pri)}
+.pj-sop-near,.pj-sum b.pj-sop-near{color:var(--dan);font-weight:700}
+.pj-end{padding:5px 11px;background:#fff;color:var(--dan);border:1px solid #fecaca;border-radius:6px;
+  font-size:.8125rem;cursor:pointer;font-family:var(--font)}
+.pj-end:hover{background:var(--dan-l)}
+.pj-done{margin-top:14px}
+.pj-done-head{display:inline-flex;align-items:center;gap:8px;border:none;background:none;cursor:pointer;
+  font-family:var(--font);font-size:.875rem;color:var(--g600);padding:6px 2px}
+.pj-done-head:hover{color:var(--g800)}
+.pj-arw{display:inline-block;font-size:.7rem;transition:transform .15s}
+.pj-done.open .pj-arw{transform:rotate(90deg)}
+.pj-cnt{background:var(--g200);border-radius:10px;padding:0 8px;font-size:.75rem}
+.pj-done-body{display:none;margin-top:6px}
+.pj-done.open .pj-done-body{display:block}
+.pj-done-table{box-shadow:none;border:1px solid var(--g200);min-width:600px}
+.pj-done-table th{background:var(--g200);color:var(--g600);padding:7px 10px;font-size:.75rem}
+.pj-done-table td{color:var(--g400);font-size:.8125rem;padding:5px 10px}
+.pj-done-table .sbtn{font-size:.75rem;padding:3px 9px}
+.pj-dash-cnt{border:none;background:var(--pri-l);color:var(--pri);border-radius:10px;padding:2px 10px;
+  font-weight:600;font-size:.8125rem;cursor:pointer;font-family:var(--font)}
+.pj-dash-cnt:hover{background:var(--pri);color:#fff}
+.mfoot .pj-del{margin-right:auto}
+
 /* --- Responsive --- */
 @media (max-width:900px){
   .dgrid{grid-template-columns:1fr}
+  .pj-layout{grid-template-columns:1fr}
+  .pj-mlist{display:none}
+  .pj-msel{display:block}
 }
 @media (max-width:768px){
   html{font-size:15px}

@@ -10,13 +10,14 @@
 (function (global) {
   'use strict';
 
-  const COLLECTIONS = ['members', 'schedules', 'todos', 'notices', 'dayMemos'];
+  const COLLECTIONS = ['members', 'schedules', 'todos', 'notices', 'dayMemos', 'projects'];
   const LS_KEY = {
     members: 'ps2_members',
     schedules: 'ps2_sch',
     todos: 'ps2_todos',
     notices: 'ps2_notices',
-    dayMemos: 'ps2_dayMemos'
+    dayMemos: 'ps2_dayMemos',
+    projects: 'ps2_projects'
   };
 
   const DataStore = {
@@ -24,7 +25,7 @@
     status: 'offline',      // 'offline' | 'connecting' | 'online' | 'auth-required' | 'error'
     statusMessage: '',
     user: null,
-    data: { members: [], schedules: [], todos: [], notices: [], dayMemos: [] },
+    data: { members: [], schedules: [], todos: [], notices: [], dayMemos: [], projects: [] },
 
     onChange: null,   // 데이터 변경 시 호출
     onStatus: null,   // 연결 상태 변경 시 호출

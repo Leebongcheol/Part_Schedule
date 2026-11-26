@@ -68,10 +68,10 @@ check('오프라인(local) 모드', window.DataStore.mode === 'local', window.Da
 check('오프라인 배너 표시', D.getElementById('offline-banner').hidden === false);
 check('로그인 모달 숨김', D.getElementById('modal-login').hidden === true);
 
-sec('1. 메뉴 순서 (공지 > 월간 > 주간 > 대시보드 > 팀원 > 가이드)');
+sec('1. 메뉴 순서 (공지 > 월간 > 주간 > 프로젝트 > 대시보드 > 팀원 > 가이드)');
 const navOrder = [...D.querySelectorAll('.nav .nav-btn')].map(b => b.dataset.view);
 check('순서 정확', JSON.stringify(navOrder) ===
-  JSON.stringify(['notice', 'month', 'week', 'dashboard', 'members', 'guide']),
+  JSON.stringify(['notice', 'month', 'week', 'projects', 'dashboard', 'members', 'guide']),
   JSON.stringify(navOrder));
 const navLabels = [...D.querySelectorAll('.nav .nav-btn')].map(b => b.textContent.trim());
 check('첫 항목이 공지사항', navLabels[0].includes('공지사항'), navLabels[0]);
@@ -453,8 +453,8 @@ check('섹션 여백 CSS', /\.dash-sec\{[^}]*margin-bottom/.test(css));
 check('섹션 제목 띠 CSS', /\.sec-h\{[^}]*border-left/.test(css));
 check('팀원표 8행', D.querySelectorAll('#dash-body tr').length === 8);
 const dHead = [...D.querySelectorAll('#view-dashboard .dtable thead th')].map(t => t.textContent.trim());
-check('컬럼 = 이름/직책/오늘 근태/메인 업무/지원 필요/비고',
-  JSON.stringify(dHead) === JSON.stringify(['이름','직책','오늘 근태','메인 업무','지원 필요','비고']),
+check('컬럼 = 이름/직책/오늘 근태/메인 업무/진행 프로젝트/지원 필요/비고',
+  JSON.stringify(dHead) === JSON.stringify(['이름','직책','오늘 근태','메인 업무','진행 프로젝트','지원 필요','비고']),
   JSON.stringify(dHead));
 check('완료 업무 컬럼 없음', !dHead.includes('완료 업무'));
 check('상태 컬럼은 비고로 대체', !dHead.includes('상태') && dHead.includes('비고'));
@@ -866,9 +866,82 @@ check('파일 선택 input이 사이드바에 없음',
 // 인쇄 스타일시트는 남겨둠 (Ctrl+P 로 여전히 깔끔하게 출력됨)
 check('인쇄용 CSS는 유지 (Ctrl+P 대응)', /@media print/.test(css));
 
+sec('16-2. 프로젝트 관리');
+{
+  nav('projects');
+  const mid0 = memberIds()[0];
+  click(D.querySelector(`#pj-mlist [data-pj-member="${mid0}"]`));
+  check('프로젝트 뷰 활성', D.getElementById('view-projects').classList.contains('active'));
+  const addPj = (customer, name, sop, extra = {}) => {
+    click(D.getElementById('btn-add-project'));
+    D.getElementById('pj-customer').value = customer;
+    D.getElementById('pj-name').value = name;
+    D.getElementById('pj-sop').value = sop;
+    if (extra.stage) D.getElementById('pj-stage').value = extra.stage;
+    if (extra.sample) D.getElementById('pj-sample').value = extra.sample;
+    click(D.getElementById('btn-project-save'));
+  };
+  const now = new Date();
+  const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  addPj('현대', 'GV90', ym(now), { stage: 'PV', sample: 'O' });
+  addPj('BMW', 'ICON30', '2099-03');
+  addPj('<b>X</b>', 'ESC', '');
+  const pjs = () => JSON.parse(store['ps2_projects'] || '[]');
+  check('프로젝트 3건 저장', pjs().length === 3, store['ps2_projects']);
+  check('추가 시 선택 담당자로 저장', pjs().every(p => p.memberId === mid0));
+  check('O/X 값이 boolean 으로 저장', pjs().find(p => p.name === 'GV90').samplePkg === true
+    && pjs().find(p => p.name === 'ICON30').samplePkg === false);
+  const heads = [...D.querySelectorAll('#pj-head th')].map(t => t.textContent.trim());
+  check('컬럼 순서: 고객사 > 프로젝트명 > Stage > 시작샘플 > 양산 > Validation > SOP',
+    JSON.stringify(heads.slice(0, 7)) === JSON.stringify(['고객사','프로젝트명','Stage','시작샘플 포장','양산 포장','Validation','SOP']),
+    JSON.stringify(heads));
+  const custs = [...D.querySelectorAll('#pj-body td.pj-cust')].map(t => t.textContent);
+  check('고객사명 순 정렬', JSON.stringify(custs) === JSON.stringify(['<b>X</b>', 'BMW', '현대']), JSON.stringify(custs));
+  check('고객사 XSS 이스케이프', D.querySelector('#pj-body td.pj-cust b') === null);
+  const rowOf = n => [...D.querySelectorAll('#pj-body tr')].find(r => r.querySelector('.pj-name').textContent === n);
+  check('SOP 년월만 표시', rowOf('ICON30').textContent.includes('2099-03') && !/2099-03-\d/.test(rowOf('ICON30').textContent));
+  check('이번 달 SOP 빨간색', rowOf('GV90').querySelector('.pj-sop-near') !== null);
+  check('먼 SOP 기본색', rowOf('ICON30').querySelector('.pj-sop-near') === null);
+  check('좌측 배지에 진행 건수', D.querySelector(`#pj-mlist [data-pj-member="${mid0}"] .pj-badge`).textContent === '3');
+
+  // O/X 토글
+  click(rowOf('ICON30').querySelector('[data-pj-ox$="|validation"]'));
+  check('O/X 클릭 토글', pjs().find(p => p.name === 'ICON30').validation === true);
+
+  // 종료 → 완료 영역 (기본 접힘)
+  click(rowOf('ICON30').querySelector('[data-pj-close]'));
+  check('종료 처리', pjs().find(p => p.name === 'ICON30').closed === true);
+  check('진행 목록에서 빠짐', !rowOf('ICON30'));
+  check('완료 건수 1', D.getElementById('pj-done-cnt').textContent === '1');
+  check('완료 영역 기본 접힘', !D.getElementById('pj-done').classList.contains('open'));
+  click(D.getElementById('pj-done-toggle'));
+  check('펼치기', D.getElementById('pj-done').classList.contains('open')
+    && D.querySelector('#pj-done-body').textContent.includes('ICON30'));
+  click(D.querySelector('[data-pj-reopen]'));
+  check('복원', pjs().find(p => p.name === 'ICON30').closed === false && !!rowOf('ICON30'));
+
+  // 전체 보기 = 담당자 열 추가
+  click(D.querySelector('#pj-mlist [data-pj-member="all"]'));
+  check('전체 보기 시 담당자 열', [...D.querySelectorAll('#pj-head th')].some(t => t.textContent === '담당자'));
+  check('선택 담당자 기억', store['ps2_proj_member'] === 'all');
+
+  // 대시보드 진행 프로젝트 수 → 클릭 시 해당 팀원 프로젝트로 이동
+  nav('dashboard');
+  const goto = D.querySelector(`#dash-body [data-pj-goto="${mid0}"]`);
+  check('대시보드 진행 프로젝트 3건', goto && goto.textContent === '3건');
+  click(goto);
+  check('대시보드 → 프로젝트 화면 이동', D.getElementById('view-projects').classList.contains('active')
+    && D.querySelector('#pj-mlist .pj-mitem.on').dataset.pjMember === mid0);
+
+  // 삭제
+  click(rowOf('ESC').querySelector('[data-pj-edit]'));
+  click(D.getElementById('btn-project-del'));
+  check('수정 모달에서 삭제', pjs().length === 2);
+}
+
 sec('17. 남은 메뉴 무결성');
 const navAfter = [...D.querySelectorAll('.nav .nav-btn')].map(b => b.dataset.view);
-check('메뉴 6개 그대로', navAfter.length === 6, JSON.stringify(navAfter));
+check('메뉴 7개 그대로', navAfter.length === 7, JSON.stringify(navAfter));
 for (const v of navAfter) {
   nav(v);
   check(`${v} 뷰 정상 전환`, D.getElementById('view-' + v).classList.contains('active'));
