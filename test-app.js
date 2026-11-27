@@ -916,13 +916,14 @@ sec('16-2. 프로젝트 관리');
   check('MM입력 현황 숫자 저장 (미입력은 빈값)', pjs().find(p => p.name === 'ICON30').mm === 1.5
     && pjs().find(p => p.name === 'GV90').mm === '');
   const mmOf = n => [...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes(n)).querySelector('td.pj-mm').textContent;
+  check('MM 컬럼 폭 축소', /\.pj-table th\.pj-mm-th\{width:56px/.test(css));
   check('MM입력 현황 표시', mmOf('ICON30') === '1.5' && mmOf('GV90') === '-');
   click([...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes('ICON30')).querySelector('[data-pj-edit]'));
   check('수정 팝업에 MM 값 로드', D.getElementById('pj-mm').value === '1.5');
   click(D.getElementById('btn-project-save'));
   const heads = [...D.querySelectorAll('#pj-head th')].map(t => t.textContent.trim());
   check('컬럼 순서: 고객사 > 프로젝트명 > Stage > 시작샘플 > 양산 > Validation > MM > SOP',
-    JSON.stringify(heads.slice(0, 8)) === JSON.stringify(['고객사','프로젝트명','Stage','시작샘플 포장','양산 포장','Validation','MM입력 현황','SOP']),
+    JSON.stringify(heads.slice(0, 8)) === JSON.stringify(['고객사','프로젝트명','Stage','시작샘플 포장','양산 포장','Validation','MM입력현황','SOP']),
     JSON.stringify(heads));
   const custs = [...D.querySelectorAll('#pj-body td.pj-cust')].map(t => t.textContent);
   check('고객사명 순 정렬', JSON.stringify(custs) === JSON.stringify(['<b>X</b>', 'BMW', '현대']), JSON.stringify(custs));

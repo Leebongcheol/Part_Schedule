@@ -637,6 +637,7 @@ textarea.inp{resize:vertical}
 .pj-done-table th:first-child,.pj-done-table td:first-child{text-align:center}
 .pj-table td.pj-name{text-align:left}
 .pj-act-th{width:130px}
+.pj-table th.pj-mm-th{width:56px;line-height:1.25}
 .pj-acts{white-space:nowrap}
 .pj-acts>*+*{margin-left:4px}
 .pj-stage{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;font-weight:700;color:#fff;background:var(--g400)}
