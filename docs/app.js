@@ -239,7 +239,7 @@ function updNotice(id, patch) {
 function delNotice(id) { DataStore.remove('notices', id); }
 
 // ===== Project =====
-const PJ_STAGES = ['RFQ', 'DV', 'PV'];
+const PJ_STAGES = ['RFQ', 'DV', 'PV', '4M'];
 const PJ_FLAGS = ['samplePkg', 'massPkg', 'validation'];
 /** 포장 개발 / Validation 진행 상태 (3단계) */
 const PJ_PROGRESS = ['미진행', '진행 중', '완료'];

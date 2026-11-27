@@ -886,6 +886,13 @@ sec('16-2. 프로젝트 관리');
   addPj('현대', 'GV90', ym(now), { stage: 'PV', sample: '완료' });
   addPj('BMW', 'ICON30', '2099-03');
   addPj('<b>X</b>', 'ESC', '');
+  addPj('Audi', 'Q8', '2099-01', { stage: '4M' });
+  check('4M Stage 저장·표시', JSON.parse(store['ps2_projects']).some(p => p.stage === '4M')
+    && D.querySelector('#pj-body .pj-stage.st-4M') !== null
+    && D.querySelector('#pj-sum .st-4M') !== null);
+  check('4M 빨간색', /\.st-4M\{background:#dc2626\}/.test(css));
+  click([...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes('Q8')).querySelector('[data-pj-edit]'));
+  click(D.getElementById('btn-project-del'));
   const pjs = () => JSON.parse(store['ps2_projects'] || '[]');
   check('프로젝트 3건 저장', pjs().length === 3, store['ps2_projects']);
   check('추가 시 선택 담당자로 저장', pjs().every(p => p.memberId === mid0));

@@ -635,7 +635,7 @@ textarea.inp{resize:vertical}
 .pj-acts>*+*{margin-left:4px}
 .pj-stage{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;font-weight:700;color:#fff;background:var(--g400)}
 .pj-sum .pj-stage{margin-right:2px}
-.st-RFQ{background:#f59e0b}.st-DV{background:#3b82f6}.st-PV{background:#16a34a}
+.st-RFQ{background:#f59e0b}.st-DV{background:#3b82f6}.st-PV{background:#16a34a}.st-4M{background:#dc2626}
 .pj-pg{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;font-weight:600;
   white-space:nowrap;border:1px solid}
 .pg-none{color:var(--g400);border-color:var(--g200);background:var(--g50)}
