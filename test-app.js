@@ -884,18 +884,28 @@ sec('16-2. 프로젝트 관리');
     D.getElementById('pj-sop').value = sop;
     if (extra.stage) D.getElementById('pj-stage').value = extra.stage;
     if (extra.sample) D.getElementById('pj-sample').value = extra.sample;
+    if (extra.mm !== undefined) D.getElementById('pj-mm').value = extra.mm;
     click(D.getElementById('btn-project-save'));
   };
   const now = new Date();
   const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   addPj('현대', 'GV90', ym(now), { stage: 'PV', sample: '완료' });
-  addPj('BMW', 'ICON30', '2099-03');
+  addPj('BMW', 'ICON30', '2099-03', { mm: '1.5' });
   addPj('<b>X</b>', 'ESC', '');
   addPj('Audi', 'Q8', '2099-01', { stage: '4M' });
   check('4M Stage 저장·표시', JSON.parse(store['ps2_projects']).some(p => p.stage === '4M')
     && D.querySelector('#pj-body .pj-stage.st-4M') !== null
     && D.querySelector('#pj-sum .st-4M') !== null);
   check('4M 빨간색', /\.st-4M\{background:#dc2626\}/.test(css));
+  addPj('Kia', 'EV9', '2099-02', { stage: 'MP' });
+  check('MP Stage 저장·표시', JSON.parse(store['ps2_projects']).some(p => p.stage === 'MP')
+    && D.querySelector('#pj-body .pj-stage.st-MP') !== null && D.querySelector('#pj-sum .st-MP') !== null);
+  check('MP 회색/검정 계열', /\.st-MP\{background:#374151\}/.test(css));
+  click(D.querySelector('#pj-sum [data-pj-filter="MP"]'));
+  check('MP 필터', [...D.querySelectorAll('#pj-body td.pj-name')].map(t => t.textContent).join() === 'EV9');
+  click(D.querySelector('#pj-sum [data-pj-filter="MP"]'));
+  click([...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes('EV9')).querySelector('[data-pj-edit]'));
+  click(D.getElementById('btn-project-del'));
   click([...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes('Q8')).querySelector('[data-pj-edit]'));
   click(D.getElementById('btn-project-del'));
   const pjs = () => JSON.parse(store['ps2_projects'] || '[]');
@@ -903,9 +913,16 @@ sec('16-2. 프로젝트 관리');
   check('추가 시 선택 담당자로 저장', pjs().every(p => p.memberId === mid0));
   check('진행 상태 3단계 저장 (기본 미진행)', pjs().find(p => p.name === 'GV90').samplePkg === '완료'
     && pjs().find(p => p.name === 'ICON30').samplePkg === '미진행');
+  check('MM입력 현황 숫자 저장 (미입력은 빈값)', pjs().find(p => p.name === 'ICON30').mm === 1.5
+    && pjs().find(p => p.name === 'GV90').mm === '');
+  const mmOf = n => [...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes(n)).querySelector('td.pj-mm').textContent;
+  check('MM입력 현황 표시', mmOf('ICON30') === '1.5' && mmOf('GV90') === '-');
+  click([...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes('ICON30')).querySelector('[data-pj-edit]'));
+  check('수정 팝업에 MM 값 로드', D.getElementById('pj-mm').value === '1.5');
+  click(D.getElementById('btn-project-save'));
   const heads = [...D.querySelectorAll('#pj-head th')].map(t => t.textContent.trim());
-  check('컬럼 순서: 고객사 > 프로젝트명 > Stage > 시작샘플 > 양산 > Validation > SOP',
-    JSON.stringify(heads.slice(0, 7)) === JSON.stringify(['고객사','프로젝트명','Stage','시작샘플 포장','양산 포장','Validation','SOP']),
+  check('컬럼 순서: 고객사 > 프로젝트명 > Stage > 시작샘플 > 양산 > Validation > MM > SOP',
+    JSON.stringify(heads.slice(0, 8)) === JSON.stringify(['고객사','프로젝트명','Stage','시작샘플 포장','양산 포장','Validation','MM입력 현황','SOP']),
     JSON.stringify(heads));
   const custs = [...D.querySelectorAll('#pj-body td.pj-cust')].map(t => t.textContent);
   check('고객사명 순 정렬', JSON.stringify(custs) === JSON.stringify(['<b>X</b>', 'BMW', '현대']), JSON.stringify(custs));

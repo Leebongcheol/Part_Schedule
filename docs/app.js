@@ -239,7 +239,7 @@ function updNotice(id, patch) {
 function delNotice(id) { DataStore.remove('notices', id); }
 
 // ===== Project =====
-const PJ_STAGES = ['RFQ', 'DV', 'PV', '4M'];
+const PJ_STAGES = ['RFQ', 'DV', 'PV', 'MP', '4M'];
 const PJ_FLAGS = ['samplePkg', 'massPkg', 'validation'];
 /** 포장 개발 / Validation 진행 상태 (3단계) */
 const PJ_PROGRESS = ['미진행', '진행 중', '완료'];
@@ -865,6 +865,15 @@ function progressCell(p, field) {
   const v = pjProgress(p[field]);
   return `<td><span class="pj-pg ${PJ_PROGRESS_CLS[v]}">${v}</span></td>`;
 }
+// MM: 숫자 또는 '' (미입력)
+function parseMm(v) {
+  const n = parseFloat(String(v ?? '').trim());
+  return isFinite(n) ? n : '';
+}
+function mmText(v, empty = '-') {
+  const n = parseMm(v);
+  return n === '' ? empty : String(n);
+}
 function sopCell(p) {
   if (!p.sop) return '<td><span class="cp-none">-</span></td>';
   const d = sopMonthsLeft(p.sop);
@@ -908,13 +917,14 @@ function renderProjects() {
 
   const ownerTh = isAll ? '<th>담당자</th>' : '';
   $('pj-head').innerHTML = `<tr><th>고객사</th><th>프로젝트명</th><th>Stage</th><th>시작샘플 포장</th>`
-    + `<th>양산 포장</th><th>Validation</th><th>SOP</th>${ownerTh}<th class="pj-act-th">작업</th></tr>`;
-  const cols = isAll ? 9 : 8;
+    + `<th>양산 포장</th><th>Validation</th><th>MM입력 현황</th><th>SOP</th>${ownerTh}<th class="pj-act-th">작업</th></tr>`;
+  const cols = isAll ? 10 : 9;
   $('pj-body').innerHTML = shown.map(p => `<tr>
       <td class="pj-cust">${esc(p.customer)}</td>
       <td class="pj-name">${esc(p.name)}</td>
       <td><span class="pj-stage st-${esc(p.stage)}">${esc(p.stage || '-')}</span></td>
       ${PJ_FLAGS.map(f => progressCell(p, f)).join('')}
+      <td class="pj-mm">${mmText(p.mm)}</td>
       ${sopCell(p)}
       ${isAll ? `<td>${esc(nameOf(p.memberId))}</td>` : ''}
       <td class="pj-acts"><button class="sbtn" data-pj-edit="${p.id}">수정</button>
@@ -1227,6 +1237,7 @@ function openProjectModal(editId) {
     $('pj-sample').value = pjProgress(p.samplePkg);
     $('pj-mass').value = pjProgress(p.massPkg);
     $('pj-valid').value = pjProgress(p.validation);
+    $('pj-mm').value = mmText(p.mm, '');
     $('pj-sop').value = p.sop || '';
   } else {
     $('project-modal-title').textContent = '프로젝트 추가';
@@ -1238,6 +1249,7 @@ function openProjectModal(editId) {
     $('pj-sample').value = '미진행';
     $('pj-mass').value = '미진행';
     $('pj-valid').value = '미진행';
+    $('pj-mm').value = '';
     $('pj-sop').value = '';
   }
   openModal('modal-project');
@@ -1256,6 +1268,7 @@ function saveProjectModal() {
     samplePkg: pjProgress($('pj-sample').value),
     massPkg: pjProgress($('pj-mass').value),
     validation: pjProgress($('pj-valid').value),
+    mm: parseMm($('pj-mm').value),
     sop: $('pj-sop').value
   };
   const editId = $('project-edit-id').value;

@@ -261,9 +261,9 @@
                     <h3>📁 프로젝트 관리</h3>
                     <ul>
                         <li>좌측 <b>팀원 목록</b>을 클릭해 담당자별 프로젝트를 봅니다 (<b>전체</b> 선택 시 담당자 열 표시)</li>
-                        <li>우측 상단 <b>+ 프로젝트 추가</b> → 고객사·프로젝트명·Stage(RFQ/DV/PV/4M)·포장 개발·Validation·SOP(년월) 입력</li>
+                        <li>우측 상단 <b>+ 프로젝트 추가</b> → 고객사·프로젝트명·Stage(RFQ/DV/PV/MP/4M)·포장 개발·Validation·MM입력 현황(숫자)·SOP(년월) 입력</li>
                         <li>포장 개발·Validation은 <b>미진행 / 진행 중 / 완료</b> 3단계로 표시되며, 모든 항목은 <b>수정</b> 버튼으로만 변경합니다</li>
-                        <li>상단 <b>RFQ·DV·PV·4M·SOP 임박</b>을 클릭하면 해당 항목만 보입니다 (다시 클릭하거나 <b>진행</b> 클릭 시 해제)</li>
+                        <li>상단 <b>RFQ·DV·PV·MP·4M·SOP 임박</b>을 클릭하면 해당 항목만 보입니다 (다시 클릭하거나 <b>진행</b> 클릭 시 해제)</li>
                         <li>SOP가 <b>이번 달·다음 달</b>이거나 이미 지났으면 빨간색으로 표시됩니다</li>
                         <li>개발이 끝나면 <b>종료</b> → 아래 <b>완료된 프로젝트</b>(기본 접힘)로 이동, <b>↩ 복원</b>으로 되돌릴 수 있습니다</li>
                     </ul>
@@ -463,7 +463,7 @@
             <div class="row2">
                 <div class="fg"><label>담당자 *</label><select class="inp" id="pj-member"></select></div>
                 <div class="fg"><label>Stage</label><select class="inp" id="pj-stage">
-                    <option value="RFQ">RFQ</option><option value="DV">DV</option><option value="PV">PV</option><option value="4M">4M</option>
+                    <option value="RFQ">RFQ</option><option value="DV">DV</option><option value="PV">PV</option><option value="MP">MP</option><option value="4M">4M</option>
                 </select></div>
             </div>
             <div class="row3">
@@ -471,7 +471,10 @@
                 <div class="fg"><label>양산 포장 개발</label><select class="inp" id="pj-mass"><option>미진행</option><option>진행 중</option><option>완료</option></select></div>
                 <div class="fg"><label>Validation</label><select class="inp" id="pj-valid"><option>미진행</option><option>진행 중</option><option>완료</option></select></div>
             </div>
-            <div class="fg"><label>SOP (년월)</label><input type="month" class="inp" id="pj-sop"></div>
+            <div class="row2">
+                <div class="fg"><label>MM입력 현황</label><input type="number" class="inp" id="pj-mm" step="0.1" min="0" placeholder="숫자 입력"></div>
+                <div class="fg"><label>SOP (년월)</label><input type="month" class="inp" id="pj-sop"></div>
+            </div>
         </div>
         <div class="mfoot">
             <button class="dbtn pj-del" id="btn-project-del" hidden>삭제</button>
