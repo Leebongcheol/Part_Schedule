@@ -531,9 +531,14 @@ if (setAbsence(vIds[4], ymd(0), '휴가')) {
   check('오늘 부재는 "중"으로 표시', /휴가 중/.test(r), r);
 }
 
-// 연속 4일 휴가 -> 장기휴가
+// 연속 4일 휴가 -> 장기휴가 (앱은 주말을 건너뛰고 연속 일수를 세므로 평일 4일을 고른다)
 let okLong = true;
-for (let i = 5; i <= 8; i++) if (!setAbsence(vIds[5], ymd(i), '휴가')) okLong = false;
+const longDays = [];
+for (let i = 5; longDays.length < 4; i++) {
+  const dow = new Date(ymd(i) + 'T00:00:00').getDay();
+  if (dow !== 0 && dow !== 6) longDays.push(ymd(i));
+}
+for (const ds of longDays) if (!setAbsence(vIds[5], ds, '휴가')) okLong = false;
 if (okLong) {
   const r = remarkOf(vIds[5]);
   check('4일 이상은 장기휴가로 표기', /장기휴가/.test(r), r);
