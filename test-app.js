@@ -910,6 +910,24 @@ sec('16-2. 프로젝트 관리');
   const custs = [...D.querySelectorAll('#pj-body td.pj-cust')].map(t => t.textContent);
   check('고객사명 순 정렬', JSON.stringify(custs) === JSON.stringify(['<b>X</b>', 'BMW', '현대']), JSON.stringify(custs));
   check('고객사 XSS 이스케이프', D.querySelector('#pj-body td.pj-cust b') === null);
+  check('고객사 열 가운데 정렬 CSS', /\.pj-table td:first-child[^{]*\{text-align:center\}/.test(css));
+
+  // 상단 요약 클릭 필터
+  const names = () => [...D.querySelectorAll('#pj-body td.pj-name')].map(t => t.textContent);
+  const fchip = k => D.querySelector(`#pj-sum [data-pj-filter="${k}"]`);
+  click(fchip('RFQ'));
+  check('RFQ 필터', JSON.stringify(names()) === JSON.stringify(['ESC', 'ICON30']), JSON.stringify(names()));
+  check('선택 칩 강조', fchip('RFQ').classList.contains('on'));
+  click(fchip('PV'));
+  check('PV 필터', JSON.stringify(names()) === JSON.stringify(['GV90']), JSON.stringify(names()));
+  click(fchip('near'));
+  check('SOP 임박 필터', JSON.stringify(names()) === JSON.stringify(['GV90']), JSON.stringify(names()));
+  click(fchip('4M'));
+  check('해당 없음 안내', names().length === 0 && D.querySelector('#pj-body').textContent.includes('조건에 맞는'));
+  click(fchip('4M'));
+  check('같은 칩 재클릭 시 해제', names().length === 3);
+  click(fchip('DV')); click(fchip(''));
+  check('진행 칩 클릭 시 전체', names().length === 3);
   const rowOf = n => [...D.querySelectorAll('#pj-body tr')].find(r => r.querySelector('.pj-name').textContent === n);
   check('SOP 년월만 표시', rowOf('ICON30').textContent.includes('2099-03') && !/2099-03-\d/.test(rowOf('ICON30').textContent));
   check('이번 달 SOP 빨간색', rowOf('GV90').querySelector('.pj-sop-near') !== null);

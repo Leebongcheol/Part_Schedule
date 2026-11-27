@@ -253,6 +253,8 @@ function pjProgress(v) {
 let pjMember = global_localStorageGet('ps2_proj_member') || '';
 /** 완료된 프로젝트 영역 펼침 여부 (기본: 접힘) */
 let pjDoneOpen = false;
+/** 상단 요약 필터 ('' = 전체, 'RFQ'|'DV'|'PV'|'4M' = Stage, 'near' = SOP 임박) */
+let pjFilter = '';
 
 function addProject(o) {
   DataStore.put('projects', { id: uid(), closed: false, createdAt: new Date().toISOString(), ...o });
@@ -892,18 +894,23 @@ function renderProjects() {
   const open = sortProjects(mine.filter(p => !p.closed));
   const done = sortProjects(mine.filter(p => p.closed));
 
-  // 요약
+  // 요약 (클릭 시 해당 항목만 필터링, 다시 클릭하거나 '진행' 클릭 시 해제)
   const cnt = s => open.filter(p => p.stage === s).length;
   const near = open.filter(p => isSopNear(p.sop)).length;
-  $('pj-sum').innerHTML = `<div>진행 <b>${open.length}</b></div>`
-    + PJ_STAGES.map(s => `<div><span class="pj-stage st-${s}">${s}</span> <b>${cnt(s)}</b></div>`).join('')
-    + `<div>SOP 임박 <b class="${near ? 'pj-sop-near' : ''}">${near}</b></div>`;
+  const chip = (key, inner) => `<button class="pj-chip ${pjFilter === key ? 'on' : ''}" data-pj-filter="${key}" `
+    + `aria-pressed="${pjFilter === key}">${inner}</button>`;
+  $('pj-sum').innerHTML = chip('', `진행 <b>${open.length}</b>`)
+    + PJ_STAGES.map(s => chip(s, `<span class="pj-stage st-${s}">${s}</span> <b>${cnt(s)}</b>`)).join('')
+    + chip('near', `SOP 임박 <b class="${near ? 'pj-sop-near' : ''}">${near}</b>`);
+  const shown = !pjFilter ? open
+    : pjFilter === 'near' ? open.filter(p => isSopNear(p.sop))
+    : open.filter(p => p.stage === pjFilter);
 
   const ownerTh = isAll ? '<th>담당자</th>' : '';
   $('pj-head').innerHTML = `<tr><th>고객사</th><th>프로젝트명</th><th>Stage</th><th>시작샘플 포장</th>`
     + `<th>양산 포장</th><th>Validation</th><th>SOP</th>${ownerTh}<th class="pj-act-th">작업</th></tr>`;
   const cols = isAll ? 9 : 8;
-  $('pj-body').innerHTML = open.map(p => `<tr>
+  $('pj-body').innerHTML = shown.map(p => `<tr>
       <td class="pj-cust">${esc(p.customer)}</td>
       <td class="pj-name">${esc(p.name)}</td>
       <td><span class="pj-stage st-${esc(p.stage)}">${esc(p.stage || '-')}</span></td>
@@ -913,7 +920,9 @@ function renderProjects() {
       <td class="pj-acts"><button class="sbtn" data-pj-edit="${p.id}">수정</button>
         <button class="pj-end" data-pj-close="${p.id}">종료</button></td>
     </tr>`).join('')
-    || `<tr><td colspan="${cols}" class="none-txt">진행 중인 프로젝트가 없습니다. 우측 상단 "+ 프로젝트 추가" 버튼을 눌러 추가하세요.</td></tr>`;
+    || `<tr><td colspan="${cols}" class="none-txt">${pjFilter && open.length
+      ? '선택한 조건에 맞는 프로젝트가 없습니다.'
+      : '진행 중인 프로젝트가 없습니다. 우측 상단 "+ 프로젝트 추가" 버튼을 눌러 추가하세요.'}</td></tr>`;
 
   // 완료된 프로젝트 (회색, 기본 접힘)
   $('pj-done-cnt').textContent = done.length;
@@ -1601,6 +1610,13 @@ function bind() {
   });
   $('pj-member-sel').addEventListener('change', e => selectPjMember(e.target.value));
   $('pj-done-toggle').addEventListener('click', () => { pjDoneOpen = !pjDoneOpen; renderProjects(); });
+  $('pj-sum').addEventListener('click', e => {
+    const f = e.target.closest('[data-pj-filter]');
+    if (!f) return;
+    const key = f.dataset.pjFilter;
+    pjFilter = pjFilter === key ? '' : key;
+    renderProjects();
+  });
   $('view-projects').addEventListener('click', e => {
     const ed = e.target.closest('[data-pj-edit]');
     if (ed) { openProjectModal(ed.dataset.pjEdit); return; }

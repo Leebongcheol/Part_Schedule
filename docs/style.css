@@ -624,11 +624,17 @@ textarea.inp{resize:vertical}
 .pj-leave{color:#7c3aed;font-weight:400}
 .pj-main{min-width:0}
 .pj-sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.pj-sum>div{background:#fff;border-radius:var(--rad);box-shadow:var(--sh);padding:7px 14px;font-size:.8125rem;color:var(--g600)}
+.pj-sum .pj-chip{background:#fff;border-radius:var(--rad);box-shadow:var(--sh);padding:7px 14px;font-size:.8125rem;
+  color:var(--g600);border:2px solid transparent;cursor:pointer;font-family:var(--font);display:inline-flex;align-items:center}
+.pj-sum .pj-chip:hover{border-color:var(--g300)}
+.pj-sum .pj-chip.on{border-color:var(--pri);background:var(--pri-l)}
 .pj-sum b{font-size:1.05rem;color:var(--g800);margin-left:4px}
 .pj-table{min-width:760px}
 .pj-table td{padding:8px 10px}
 .pj-cust{font-weight:600}
+/* 고객사(첫 열)도 가운데 정렬, 프로젝트명만 좌측 정렬 */
+.pj-table th:first-child,.pj-table td:first-child,
+.pj-done-table th:first-child,.pj-done-table td:first-child{text-align:center}
 .pj-table td.pj-name{text-align:left}
 .pj-act-th{width:130px}
 .pj-acts{white-space:nowrap}
