@@ -916,7 +916,8 @@ sec('16-2. 프로젝트 관리');
   check('MM입력 현황 숫자 저장 (미입력은 빈값)', pjs().find(p => p.name === 'ICON30').mm === 1.5
     && pjs().find(p => p.name === 'GV90').mm === '');
   const mmOf = n => [...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes(n)).querySelector('td.pj-mm').textContent;
-  check('MM 컬럼 폭: 제목 한 줄 크기', /\.pj-table th\.pj-mm-th\{width:1%;white-space:nowrap\}/.test(css));
+  check('진행상태·MM 컬럼 폭: 제목 크기에 맞춤', /\.pj-table th\.pj-fit\{width:1%;white-space:nowrap\}/.test(css)
+    && D.querySelectorAll('#pj-head th.pj-fit').length === 4);
   check('MM입력 현황 표시', mmOf('ICON30') === '1.5' && mmOf('GV90') === '-');
   click([...D.querySelectorAll('#pj-body tr')].find(r => r.textContent.includes('ICON30')).querySelector('[data-pj-edit]'));
   check('수정 팝업에 MM 값 로드', D.getElementById('pj-mm').value === '1.5');
