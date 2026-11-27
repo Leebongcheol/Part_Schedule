@@ -917,7 +917,7 @@ function renderProjects() {
 
   const ownerTh = isAll ? '<th>담당자</th>' : '';
   $('pj-head').innerHTML = `<tr><th>고객사</th><th>프로젝트명</th><th>Stage</th><th>시작샘플 포장</th>`
-    + `<th>양산 포장</th><th>Validation</th><th class="pj-mm-th">MM입력<br>현황</th><th>SOP</th>${ownerTh}<th class="pj-act-th">작업</th></tr>`;
+    + `<th>양산 포장</th><th>Validation</th><th class="pj-mm-th">MM입력 현황</th><th>SOP</th>${ownerTh}<th class="pj-act-th">작업</th></tr>`;
   const cols = isAll ? 10 : 9;
   $('pj-body').innerHTML = shown.map(p => `<tr>
       <td class="pj-cust">${esc(p.customer)}</td>
